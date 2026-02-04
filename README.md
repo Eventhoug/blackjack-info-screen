@@ -1,19 +1,22 @@
 # ♠ Blackjack Info Screen ♥
 
-A blackjack game designed for info screen displays, available in both **Processing (Java)** and **Web (HTML/JS)** versions.
+A blackjack game for info screen displays, built with **Processing (Java)**.
 
 ![Blackjack Game](https://img.shields.io/badge/Game-Blackjack-gold)
 ![Processing](https://img.shields.io/badge/Processing-Java-blue)
-![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)
 
-## 🎮 Processing Version (Java)
+## 🚀 Quick Start
 
-### Easy Integration
+1. Install [Processing](https://processing.org/download)
+2. Clone this repo or download the `BlackjackInfoScreen` folder
+3. Open `BlackjackInfoScreen.pde` in Processing
+4. Click Run!
 
-The Processing version is designed to be **super easy to integrate** into your info screen project:
+## 🎮 Easy Integration
+
+Copy the `.pde` files to your project and integrate with just a few lines:
 
 ```java
-// In your sketch:
 BlackjackGame blackjack;
 
 void setup() {
@@ -34,71 +37,49 @@ void keyPressed() {
 }
 ```
 
-### Quick Start
+## 📁 Files
 
-1. Copy the `BlackjackInfoScreen` folder to your Processing sketches folder
-2. Open `BlackjackInfoScreen.pde` in Processing
-3. Click Run!
+| File                      | Description                     |
+| ------------------------- | ------------------------------- |
+| `BlackjackInfoScreen.pde` | Main sketch (example usage)     |
+| `BlackjackGame.pde`       | Game class - the main component |
+| `Helpers.pde`             | Card, Button, Animation classes |
 
-### Files
-
-| File                      | Description                         |
-| ------------------------- | ----------------------------------- |
-| `BlackjackInfoScreen.pde` | Main sketch (example usage)         |
-| `BlackjackGame.pde`       | Game class - copy this to integrate |
-| `Helpers.pde`             | Card, Button, Animation classes     |
-
-### Integration API
+## 🔧 API Reference
 
 ```java
 // Create game at position (x, y) with size (width, height)
 BlackjackGame game = new BlackjackGame(x, y, width, height);
 
-// Call every frame to render
+// Render the game - call in draw()
 game.display();
 
-// Handle input
-game.handleClick(mouseX, mouseY);  // In mousePressed()
-game.handleKey(key);                // In keyPressed()
+// Handle mouse input - call in mousePressed()
+game.handleClick(mouseX, mouseY);
 
-// Keyboard shortcuts: D=Deal, H=Hit, S=Stand
+// Handle keyboard input - call in keyPressed()
+game.handleKey(key);
 ```
 
----
+## 🃏 Controls
 
-## 🌐 Web Version (HTML/CSS/JS)
-
-Open `index.html` in any browser. No build tools required!
-
-### Files
-
-| File         | Description          |
-| ------------ | -------------------- |
-| `index.html` | Main game page       |
-| `styles.css` | Casino table styling |
-| `game.js`    | Game logic           |
-
----
+| Action | Mouse       | Keyboard |
+| ------ | ----------- | -------- |
+| Deal   | Click DEAL  | D        |
+| Hit    | Click HIT   | H        |
+| Stand  | Click STAND | S        |
 
 ## 🎰 Features
 
 - ✅ Classic blackjack rules
 - ✅ Casino green felt table design
-- ✅ "Dealer Stands on Soft 17" rule
+- ✅ Dealer stands on soft 17
 - ✅ Win/Loss/Tie tracking
-- ✅ Info screen optimized (large text, high contrast)
-
-## 🃏 Controls
-
-| Action | Mouse              | Keyboard |
-| ------ | ------------------ | -------- |
-| Deal   | Click DEAL button  | D        |
-| Hit    | Click HIT button   | H        |
-| Stand  | Click STAND button | S        |
+- ✅ Info screen optimized
 
 ## 📜 License
 
-MIT License - free to use and modify!
+MIT License
 
 ---
 
