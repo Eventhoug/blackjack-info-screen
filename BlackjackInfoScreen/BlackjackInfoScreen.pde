@@ -4,7 +4,9 @@
 BlackjackGame blackjack;
 
 void setup() {
-  size(1200, 800);
+  size(1920, 1080);
+  smooth(8); // Enable antialiasing for better quality
+  frameRate(60); // Cap at 60fps for optimal performance
   blackjack = new BlackjackGame(0, 0, width, height);
 }
 
