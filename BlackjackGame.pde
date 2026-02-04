@@ -322,10 +322,13 @@ class BlackjackGame {
 
   // Handle mouse clicks
   void handleClick(float mx, float my) {
-    // Adjust mouse based on translation if needed, but here it's 1:1
-    if (dealBtn.isClicked(mx, my) && dealBtn.enabled) startGame();
-    if (hitBtn.isClicked(mx, my) && hitBtn.enabled) hit();
-    if (standBtn.isClicked(mx, my) && standBtn.enabled) stand();
+    // Convert global mouse coordinates to local game coordinates
+    float localX = mx - x;
+    float localY = my - y;
+
+    if (dealBtn.isClicked(localX, localY) && dealBtn.enabled) startGame();
+    if (hitBtn.isClicked(localX, localY) && hitBtn.enabled) hit();
+    if (standBtn.isClicked(localX, localY) && standBtn.enabled) stand();
   }
 
   // Handle key presses
