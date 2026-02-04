@@ -85,9 +85,11 @@ function isBlackjack(hand) {
 }
 
 // Create card element
-function createCardElement(card, hidden = false) {
+function createCardElement(card, hidden = false, isNew = false) {
     const cardEl = document.createElement('div');
-    cardEl.className = `card ${hidden ? 'hidden' : (card.suit === '♥' || card.suit === '♦' ? 'red' : 'black')}`;
+    const colorClass = hidden ? 'hidden' : (card.suit === '♥' || card.suit === '♦' ? 'red' : 'black');
+    const newClass = isNew ? ' new-card' : '';
+    cardEl.className = `card ${colorClass}${newClass}`;
     
     if (!hidden) {
         cardEl.innerHTML = `
@@ -106,28 +108,14 @@ function createCardElement(card, hidden = false) {
     return cardEl;
 }
 
-// Render hands
-function renderHands(revealDealer = false) {
-    // Clear existing cards
-    dealerCardsEl.innerHTML = '';
-    playerCardsEl.innerHTML = '';
-    
-    // Render dealer cards
-    dealerHand.forEach((card, index) => {
-        const hidden = index === 1 && !revealDealer;
-        const cardEl = createCardElement(card, hidden);
-        cardEl.style.animationDelay = `${index * 0.15}s`;
-        dealerCardsEl.appendChild(cardEl);
-    });
-    
-    // Render player cards
-    playerHand.forEach((card, index) => {
-        const cardEl = createCardElement(card);
-        cardEl.style.animationDelay = `${index * 0.15}s`;
-        playerCardsEl.appendChild(cardEl);
-    });
-    
-    // Update values
+// Add a single card to display (without re-rendering all cards)
+function addCardToDisplay(container, card, hidden = false) {
+    const cardEl = createCardElement(card, hidden, true);
+    container.appendChild(cardEl);
+}
+
+// Update hand values display
+function updateHandValues(revealDealer = false) {
     const playerValue = calculateHandValue(playerHand);
     playerValueEl.textContent = playerValue;
     
@@ -140,6 +128,56 @@ function renderHands(revealDealer = false) {
              ['K', 'Q', 'J'].includes(dealerHand[0].rank) ? '10' : 
              dealerHand[0].rank) + '?' : '0';
     }
+}
+
+// Render all hands (used for initial deal and reveal)
+function renderHands(revealDealer = false) {
+    // Clear existing cards
+    dealerCardsEl.innerHTML = '';
+    playerCardsEl.innerHTML = '';
+    
+    // Render dealer cards
+    dealerHand.forEach((card, index) => {
+        const hidden = index === 1 && !revealDealer;
+        const cardEl = createCardElement(card, hidden, false);
+        dealerCardsEl.appendChild(cardEl);
+    });
+    
+    // Render player cards
+    playerHand.forEach((card, index) => {
+        const cardEl = createCardElement(card, false, false);
+        playerCardsEl.appendChild(cardEl);
+    });
+    
+    updateHandValues(revealDealer);
+}
+
+// Initial deal with staggered animations
+function dealInitialCards() {
+    dealerCardsEl.innerHTML = '';
+    playerCardsEl.innerHTML = '';
+    
+    // Deal cards with delays for animation effect
+    setTimeout(() => {
+        const card1 = createCardElement(playerHand[0], false, true);
+        playerCardsEl.appendChild(card1);
+    }, 0);
+    
+    setTimeout(() => {
+        const card2 = createCardElement(dealerHand[0], false, true);
+        dealerCardsEl.appendChild(card2);
+    }, 150);
+    
+    setTimeout(() => {
+        const card3 = createCardElement(playerHand[1], false, true);
+        playerCardsEl.appendChild(card3);
+    }, 300);
+    
+    setTimeout(() => {
+        const card4 = createCardElement(dealerHand[1], true, true);
+        dealerCardsEl.appendChild(card4);
+        updateHandValues(false);
+    }, 450);
 }
 
 // Update game status
@@ -176,33 +214,40 @@ function startGame() {
     playerHand.push(drawCard());
     dealerHand.push(drawCard());
     
-    renderHands(false);
+    // Animate initial deal
+    dealInitialCards();
     
-    // Check for blackjack
-    if (isBlackjack(playerHand)) {
-        if (isBlackjack(dealerHand)) {
-            endGame('tie', 'Both have Blackjack! Push!');
-        } else {
-            endGame('blackjack', '🎉 BLACKJACK! 🎉');
+    // Check for blackjack after animation completes
+    setTimeout(() => {
+        if (isBlackjack(playerHand)) {
+            if (isBlackjack(dealerHand)) {
+                endGame('tie', 'Both have Blackjack! Push!');
+            } else {
+                endGame('blackjack', '🎉 BLACKJACK! 🎉');
+            }
+            return;
         }
-        return;
-    }
-    
-    if (isBlackjack(dealerHand)) {
-        endGame('lose', 'Dealer has Blackjack!');
-        return;
-    }
-    
-    setGameStatus('Your turn - Hit or Stand?');
-    setButtonStates(false, true, true);
+        
+        if (isBlackjack(dealerHand)) {
+            endGame('lose', 'Dealer has Blackjack!');
+            return;
+        }
+        
+        setGameStatus('Your turn - Hit or Stand?');
+        setButtonStates(false, true, true);
+    }, 600);
 }
 
 // Player hits
 function hit() {
     if (!gameActive) return;
     
-    playerHand.push(drawCard());
-    renderHands(false);
+    const newCard = drawCard();
+    playerHand.push(newCard);
+    
+    // Only add the new card (with animation)
+    addCardToDisplay(playerCardsEl, newCard, false);
+    updateHandValues(false);
     
     const playerValue = calculateHandValue(playerHand);
     
@@ -226,7 +271,7 @@ function stand() {
     // Dealer draws cards
     setTimeout(() => {
         dealerPlay();
-    }, 1000);
+    }, 800);
 }
 
 // Dealer's turn
@@ -235,9 +280,14 @@ function dealerPlay() {
     const playerValue = calculateHandValue(playerHand);
     
     if (dealerValue < 17) {
-        dealerHand.push(drawCard());
-        renderHands(true);
-        setTimeout(() => dealerPlay(), 800);
+        const newCard = drawCard();
+        dealerHand.push(newCard);
+        
+        // Only add the new card (with animation)
+        addCardToDisplay(dealerCardsEl, newCard, false);
+        updateHandValues(true);
+        
+        setTimeout(() => dealerPlay(), 600);
     } else {
         // Determine winner
         determineWinner(playerValue, dealerValue);
