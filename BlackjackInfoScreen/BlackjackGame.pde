@@ -40,22 +40,30 @@ class BlackjackGame {
   PGraphics tableBuffer;
   boolean needsRedraw = true;
 
+  // Auto-scaling for fullscreen
+  float scale = 1.0;
+
   BlackjackGame(float x, float y, float w, float h) {
     this.x = x;
     this.y = y;
     this.w = w;
     this.h = h;
 
+    // Calculate scale factor based on screen size (1920x1080 is reference)
+    float scaleX = w / 1920.0;
+    float scaleY = h / 1080.0;
+    scale = min(scaleX, scaleY); // Use the smaller scale to ensure everything fits
+
     playerHand = new ArrayList<Card>();
     dealerHand = new ArrayList<Card>();
     deck = new ArrayList<Card>();
     animations = new ArrayList<CardAnimation>();
 
-    // Create buttons - scaled up for better visibility
-    float btnY = y + h - 120;
-    float btnW = 180;
-    float btnH = 65;
-    float btnSpacing = 40;
+    // Create buttons - auto-scaled based on screen size
+    float btnY = y + h - (120 * scale);
+    float btnW = 180 * scale;
+    float btnH = 65 * scale;
+    float btnSpacing = 40 * scale;
     float totalBtnW = btnW * 3 + btnSpacing * 2;
     float btnStartX = x + (w - totalBtnW) / 2;
 
@@ -140,32 +148,32 @@ class BlackjackGame {
     // Header Background
     fill(0, 80);
     noStroke();
-    rect(w/2 - 250, 25, 500, 75, 30);
+    rect(w/2 - 250*scale, 25*scale, 500*scale, 75*scale, 30*scale);
 
-    textSize(52);
+    textSize(52*scale);
     fill(goldColor);
-    text("BLACKJACK", w/2, 60);
+    text("BLACKJACK", w/2, 60*scale);
 
-    // Stats Container - scaled up and repositioned
-    float statY = 50;
-    float statStartX = w - 480;
+    // Stats Container - auto-scaled
+    float statY = 50*scale;
+    float statStartX = w - 480*scale;
 
     fill(0, 60);
-    rect(statStartX - 25, 20, 440, 85, 15);
+    rect(statStartX - 25*scale, 20*scale, 440*scale, 85*scale, 15*scale);
 
-    drawStat("WINS", wins, statStartX + 50, statY);
-    drawStat("LOSSES", losses, statStartX + 195, statY);
-    drawStat("TIES", ties, statStartX + 340, statY);
+    drawStat("WINS", wins, statStartX + 50*scale, statY);
+    drawStat("LOSSES", losses, statStartX + 195*scale, statY);
+    drawStat("TIES", ties, statStartX + 340*scale, statY);
   }
 
   void drawStat(String label, int value, float x, float y) {
     textAlign(CENTER);
-    textSize(16);
+    textSize(16*scale);
     fill(textMuted);
     text(label, x, y);
-    textSize(34);
+    textSize(34*scale);
     fill(textLight);
-    text(value, x, y + 30);
+    text(value, x, y + 30*scale);
   }
 
   void drawRules() {
@@ -174,31 +182,31 @@ class BlackjackGame {
     // Add semi-transparent background for better visibility
     fill(0, 100);
     noStroke();
-    rect(w/2 - 420, h/2 - 80, 840, 90, 15);
+    rect(w/2 - 420*scale, h/2 - 80*scale, 840*scale, 90*scale, 15*scale);
 
     fill(255, 200);
-    textSize(24);
-    text("DEALER STANDS ON SOFT 17", w/2, h/2 - 50);
-    textSize(18);
-    text("BLACKJACK PAYS 3 TO 2 • INSURANCE PAYS 2 TO 1", w/2, h/2 - 15);
+    textSize(24*scale);
+    text("DEALER STANDS ON SOFT 17", w/2, h/2 - 50*scale);
+    textSize(18*scale);
+    text("BLACKJACK PAYS 3 TO 2 • INSURANCE PAYS 2 TO 1", w/2, h/2 - 15*scale);
   }
 
   void drawHands() {
-    float cardW = 130;  // Increased from 100
-    float cardH = 182;  // Increased from 140
-    float cardSpacing = 25;
+    float cardW = 130*scale;
+    float cardH = 182*scale;
+    float cardSpacing = 25*scale;
 
     // Dealer hand
-    float dealerY = 200;
+    float dealerY = 200*scale;
     textAlign(LEFT, CENTER);
-    textSize(24);
+    textSize(24*scale);
     fill(textMuted);
-    text("DEALER", w/2 - 380, dealerY - 40);
+    text("DEALER", w/2 - 380*scale, dealerY - 40*scale);
 
     // Dealer value bubble - show just the value without ?
     int dealerVal = dealerRevealed ? calculateHandValue(dealerHand) : getVisibleDealerValue();
     String dealerValStr = str(dealerVal);
-    drawValueBubble(dealerValStr, w/2 + 320, dealerY - 40);
+    drawValueBubble(dealerValStr, w/2 + 320*scale, dealerY - 40*scale);
 
     // Draw dealer cards
     float startX = (w - (dealerHand.size() * (cardW + cardSpacing))) / 2;
@@ -209,15 +217,15 @@ class BlackjackGame {
     }
 
     // Player hand
-    float playerY = h - 340;
+    float playerY = h - 340*scale;
     textAlign(LEFT, CENTER);
-    textSize(24);
+    textSize(24*scale);
     fill(textMuted);
-    text("PLAYER", w/2 - 380, playerY - 40);
+    text("PLAYER", w/2 - 380*scale, playerY - 40*scale);
 
     // Player value bubble
     int playerVal = calculateHandValue(playerHand);
-    drawValueBubble(str(playerVal), w/2 + 320, playerY - 40);
+    drawValueBubble(str(playerVal), w/2 + 320*scale, playerY - 40*scale);
 
     // Draw player cards
     startX = (w - (playerHand.size() * (cardW + cardSpacing))) / 2;
@@ -230,14 +238,14 @@ class BlackjackGame {
   void drawValueBubble(String val, float x, float y) {
     noStroke();
     fill(0, 150);
-    ellipse(x, y, 50, 50);
+    ellipse(x, y, 50*scale, 50*scale);
     stroke(goldColor);
-    strokeWeight(3);
+    strokeWeight(3*scale);
     noFill();
-    ellipse(x, y, 50, 50);
+    ellipse(x, y, 50*scale, 50*scale);
 
     fill(goldColor);
-    textSize(26);
+    textSize(26*scale);
     textAlign(CENTER, CENTER);
     text(val, x, y - 2);
   }
@@ -246,29 +254,29 @@ class BlackjackGame {
     // Shadow
     noStroke();
     fill(0, 50);
-    rect(cx + 6, cy + 6, cw, ch, 10);
+    rect(cx + 6*scale, cy + 6*scale, cw, ch, 10*scale);
 
     if (hidden) {
       // Card Back
       stroke(255);
-      strokeWeight(3);
+      strokeWeight(3*scale);
       fill(#2c3e50); // Dark Blue
-      rect(cx, cy, cw, ch, 10);
+      rect(cx, cy, cw, ch, 10*scale);
 
       // Pattern
       noStroke();
       fill(255, 15);
       ellipse(cx + cw/2, cy + ch/2, cw*0.6, cw*0.6);
       fill(255, 100);
-      textSize(24);
+      textSize(24*scale);
       textAlign(CENTER, CENTER);
       text("BJ", cx + cw/2, cy + ch/2);
     } else {
       // Card Front
       stroke(200);
-      strokeWeight(1);
+      strokeWeight(1*scale);
       fill(245); // Warm White
-      rect(cx, cy, cw, ch, 10);
+      rect(cx, cy, cw, ch, 10*scale);
 
       // Determine Color
       boolean isRed = card.suit.equals("♥") || card.suit.equals("♦");
@@ -276,23 +284,23 @@ class BlackjackGame {
 
       fill(txtColor);
 
-      // Top Corner - scaled up
+      // Top Corner - scaled
       textAlign(CENTER, TOP);
-      textSize(28);
-      text(card.rank, cx + 26, cy + 12);
-      drawSuit(cx + 10, cy + 45, 30, 30, card.suit);
+      textSize(28*scale);
+      text(card.rank, cx + 26*scale, cy + 12*scale);
+      drawSuit(cx + 10*scale, cy + 45*scale, 30*scale, 30*scale, card.suit);
 
-      // Center Suit (Large) - scaled up
-      drawSuit(cx + cw/2 - 32, cy + ch/2 - 32, 64, 64, card.suit);
+      // Center Suit (Large) - scaled
+      drawSuit(cx + cw/2 - 32*scale, cy + ch/2 - 32*scale, 64*scale, 64*scale, card.suit);
 
       // Bottom Corner (Rotated)
       pushMatrix();
-      translate(cx + cw - 26, cy + ch - 12);
+      translate(cx + cw - 26*scale, cy + ch - 12*scale);
       rotate(PI);
       fill(txtColor); // Reset fill after rotate
-      textSize(28);
+      textSize(28*scale);
       text(card.rank, 0, 0);
-      drawSuit(-15, 32, 30, 30, card.suit);
+      drawSuit(-15*scale, 32*scale, 30*scale, 30*scale, card.suit);
       popMatrix();
     }
   }
@@ -300,14 +308,14 @@ class BlackjackGame {
   void drawStatus() {
     if (gameStatus.length() == 0) return;
 
-    float statusY = h/2 + 90;
-    textSize(30);
-    float sw = textWidth(gameStatus) + 80;
+    float statusY = h/2 + 90*scale;
+    textSize(30*scale);
+    float sw = textWidth(gameStatus) + 80*scale;
 
     // Pill Background
     noStroke();
     fill(20, 20, 20, 200);
-    rect((w - sw)/2, statusY - 38, sw, 76, 38);
+    rect((w - sw)/2, statusY - 38*scale, sw, 76*scale, 38*scale);
 
     // Colored Border based on state
     if (statusType.equals("win")) stroke(#2ecc71);
@@ -315,9 +323,9 @@ class BlackjackGame {
     else if (statusType.equals("blackjack")) stroke(#f1c40f);
     else stroke(255, 100);
 
-    strokeWeight(4);
+    strokeWeight(4*scale);
     noFill();
-    rect((w - sw)/2, statusY - 38, sw, 76, 38);
+    rect((w - sw)/2, statusY - 38*scale, sw, 76*scale, 38*scale);
 
     // Text
     fill(255);
@@ -366,9 +374,11 @@ class BlackjackGame {
       }
     }
 
-    // Shuffle
+    // Shuffle - using constrained random to prevent array bounds issues
     for (int i = deck.size() - 1; i > 0; i--) {
       int j = int(random(i + 1));
+      // Safety: ensure j is within valid bounds
+      j = constrain(j, 0, i);
       Card temp = deck.get(i);
       deck.set(i, deck.get(j));
       deck.set(j, temp);
@@ -376,7 +386,13 @@ class BlackjackGame {
   }
 
   Card drawCardFromDeck() {
-    if (deck.size() == 0) createDeck();
+    if (deck.size() == 0) {
+      createDeck();
+    }
+    if (deck.size() == 0) {
+      // Emergency fallback - should never happen
+      return new Card("♠", "A");
+    }
     return deck.remove(deck.size() - 1);
   }
 
@@ -424,14 +440,14 @@ class BlackjackGame {
     dealerRevealed = false;
 
     // Deal with animation
-    float deckX = w/2 - 65;
-    float deckY = h/2 - 90;
-    float cardW = 130;
-    float cardSpacing = 25;
+    float deckX = w/2 - 65*scale;
+    float deckY = h/2 - 90*scale;
+    float cardW = 130*scale;
+    float cardSpacing = 25*scale;
 
     // Calculate positions
-    float dealerY = 200;
-    float playerY = h - 340;
+    float dealerY = 200*scale;
+    float playerY = h - 340*scale;
 
     // Deal cards with staggered animation
     Card c1 = drawCardFromDeck();

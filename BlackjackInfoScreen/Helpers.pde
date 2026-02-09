@@ -234,23 +234,67 @@ class CardAnimation {
 
 // OPTIMIZED: Vector Suit Drawing Functions using cached shapes
 void drawSuit(float x, float y, float w, float h, String suit) {
-  // Initialize cache on first call
-  if (!suitCacheInitialized) {
-    initializeSuitCache();
-  }
-
-  pushStyle();
   pushMatrix();
-  translate(x + w/2, y + h/2);
-  float s = min(w, h) / 2.0;
-  scale(s);
+  pushStyle();
 
-  // Use pre-rendered cached shape
-  PShape cachedShape = suitShapeCache.get(suit);
-  if (cachedShape != null) {
-    shape(cachedShape, 0, 0);
+  // Center the suit in the given area
+  translate(x + w/2, y + h/2);
+  float size = min(w, h);
+  scale(size / 2.0);
+
+  // Set color based on suit
+  noStroke();
+  if (suit.equals("♥") || suit.equals("♦")) {
+    fill(200, 40, 40); // Red
+  } else {
+    fill(40); // Black
   }
 
-  popMatrix();
+  // Draw the suit shape
+  if (suit.equals("♠")) {
+    // Spade
+    beginShape();
+    vertex(0, -1);
+    bezierVertex(0.5, -0.5, 0.9, 0, 0.9, 0.4);
+    bezierVertex(0.9, 0.8, 0, 0.3, 0, 0.3);
+    bezierVertex(0, 0.3, -0.9, 0.8, -0.9, 0.4);
+    bezierVertex(-0.9, 0, -0.5, -0.5, 0, -1);
+    endShape();
+    beginShape();
+    vertex(0, 0.3);
+    bezierVertex(0.1, 0.6, 0.3, 0.9, 0.5, 1);
+    vertex(-0.5, 1);
+    bezierVertex(-0.3, 0.9, -0.1, 0.6, 0, 0.3);
+    endShape();
+  } else if (suit.equals("♥")) {
+    // Heart
+    beginShape();
+    vertex(0, 0.5);
+    bezierVertex(1.2, -0.5, 1, -1.2, 0, -0.6);
+    bezierVertex(-1, -1.2, -1.2, -0.5, 0, 0.5);
+    endShape();
+  } else if (suit.equals("♣")) {
+    // Club
+    float r = 0.55;
+    ellipse(0, -0.5, r, r);
+    ellipse(-0.45, 0.15, r, r);
+    ellipse(0.45, 0.15, r, r);
+    beginShape();
+    vertex(0, 0);
+    bezierVertex(0.1, 0.6, 0.3, 0.9, 0.5, 1);
+    vertex(-0.5, 1);
+    bezierVertex(-0.3, 0.9, -0.1, 0.6, 0, 0);
+    endShape();
+  } else if (suit.equals("♦")) {
+    // Diamond
+    beginShape();
+    vertex(0, -1);
+    vertex(0.8, 0);
+    vertex(0, 1);
+    vertex(-0.8, 0);
+    endShape(CLOSE);
+  }
+
   popStyle();
+  popMatrix();
 }
