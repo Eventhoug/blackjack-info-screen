@@ -182,13 +182,11 @@ class BlackjackGame {
     // Add semi-transparent background for better visibility
     fill(0, 100);
     noStroke();
-    rect(w/2 - 420*scale, h/2 - 80*scale, 840*scale, 90*scale, 15*scale);
+    rect(w/2 - 420*scale, h/2 - 60*scale, 840*scale, 60*scale, 15*scale);
 
     fill(255, 200);
     textSize(24*scale);
-    text("DEALER STANDS ON SOFT 17", w/2, h/2 - 50*scale);
-    textSize(18*scale);
-    text("BLACKJACK PAYS 3 TO 2 • INSURANCE PAYS 2 TO 1", w/2, h/2 - 15*scale);
+    text("DEALER STANDS ON SOFT 17", w/2, h/2 - 30*scale);
   }
 
   void drawHands() {
@@ -286,22 +284,146 @@ class BlackjackGame {
 
       // Top Corner - scaled
       textAlign(CENTER, TOP);
-      textSize(28*scale);
-      text(card.rank, cx + 26*scale, cy + 12*scale);
-      drawSuit(cx + 10*scale, cy + 45*scale, 30*scale, 30*scale, card.suit);
+      textSize(cw * 0.22);
+      text(card.rank, cx + cw * 0.20, cy + ch * 0.07);
 
-      // Center Suit (Large) - scaled
-      drawSuit(cx + cw/2 - 32*scale, cy + ch/2 - 32*scale, 64*scale, 64*scale, card.suit);
+      // Draw pip pattern based on card rank
+      drawCardPips(cx, cy, cw, ch, card);
 
       // Bottom Corner (Rotated)
       pushMatrix();
-      translate(cx + cw - 26*scale, cy + ch - 12*scale);
+      translate(cx + cw - cw * 0.20, cy + ch - ch * 0.07);
       rotate(PI);
       fill(txtColor); // Reset fill after rotate
-      textSize(28*scale);
+      textSize(cw * 0.22);
       text(card.rank, 0, 0);
-      drawSuit(-15*scale, 32*scale, 30*scale, 30*scale, card.suit);
       popMatrix();
+    }
+  }
+
+  // Draw correct number of suit pips arranged like real playing cards
+  void drawCardPips(float cx, float cy, float cw, float ch, Card card) {
+    String rank = card.rank;
+    String suit = card.suit;
+
+    // Ace - one large center pip
+    if (rank.equals("A")) {
+      float ps = cw * 0.42;
+      drawSuit(cx + cw/2 - ps/2, cy + ch/2 - ps/2, ps, ps, suit);
+      return;
+    }
+
+    // Face cards (J, Q, K) - large suit in center
+    if (rank.equals("J") || rank.equals("Q") || rank.equals("K")) {
+      float ps = cw * 0.38;
+      drawSuit(cx + cw/2 - ps/2, cy + ch/2 - ps/2, ps, ps, suit);
+      return;
+    }
+
+    // Number cards (2-10)
+    int num = int(rank);
+    float ps = cw * 0.13;
+
+    // Column x-positions (center of pip)
+    float cL = cx + cw * 0.33;
+    float cC = cx + cw * 0.50;
+    float cR = cx + cw * 0.67;
+
+    // Row y-positions (center of pip) - within the card body area
+    float r0 = cy + ch * 0.28;
+    float r1 = cy + ch * 0.37;
+    float r2 = cy + ch * 0.41;
+    float r3 = cy + ch * 0.50;
+    float r4 = cy + ch * 0.59;
+    float r5 = cy + ch * 0.63;
+    float r6 = cy + ch * 0.72;
+
+    switch(num) {
+      case 2:
+        pip(cC, r0, ps, suit, false);
+        pip(cC, r6, ps, suit, true);
+        break;
+      case 3:
+        pip(cC, r0, ps, suit, false);
+        pip(cC, r3, ps, suit, false);
+        pip(cC, r6, ps, suit, true);
+        break;
+      case 4:
+        pip(cL, r0, ps, suit, false);
+        pip(cR, r0, ps, suit, false);
+        pip(cL, r6, ps, suit, true);
+        pip(cR, r6, ps, suit, true);
+        break;
+      case 5:
+        pip(cL, r0, ps, suit, false);
+        pip(cR, r0, ps, suit, false);
+        pip(cC, r3, ps, suit, false);
+        pip(cL, r6, ps, suit, true);
+        pip(cR, r6, ps, suit, true);
+        break;
+      case 6:
+        pip(cL, r0, ps, suit, false);
+        pip(cR, r0, ps, suit, false);
+        pip(cL, r3, ps, suit, false);
+        pip(cR, r3, ps, suit, false);
+        pip(cL, r6, ps, suit, true);
+        pip(cR, r6, ps, suit, true);
+        break;
+      case 7:
+        pip(cL, r0, ps, suit, false);
+        pip(cR, r0, ps, suit, false);
+        pip(cL, r3, ps, suit, false);
+        pip(cR, r3, ps, suit, false);
+        pip(cC, r2, ps, suit, false);
+        pip(cL, r6, ps, suit, true);
+        pip(cR, r6, ps, suit, true);
+        break;
+      case 8:
+        pip(cL, r0, ps, suit, false);
+        pip(cR, r0, ps, suit, false);
+        pip(cL, r3, ps, suit, false);
+        pip(cR, r3, ps, suit, false);
+        pip(cC, r2, ps, suit, false);
+        pip(cC, r4, ps, suit, true);
+        pip(cL, r6, ps, suit, true);
+        pip(cR, r6, ps, suit, true);
+        break;
+      case 9:
+        pip(cL, r0, ps, suit, false);
+        pip(cR, r0, ps, suit, false);
+        pip(cL, r1, ps, suit, false);
+        pip(cR, r1, ps, suit, false);
+        pip(cC, r3, ps, suit, false);
+        pip(cL, r5, ps, suit, true);
+        pip(cR, r5, ps, suit, true);
+        pip(cL, r6, ps, suit, true);
+        pip(cR, r6, ps, suit, true);
+        break;
+      case 10:
+        pip(cL, r0, ps, suit, false);
+        pip(cR, r0, ps, suit, false);
+        pip(cL, r1, ps, suit, false);
+        pip(cR, r1, ps, suit, false);
+        pip(cC, r2, ps, suit, false);
+        pip(cC, r4, ps, suit, true);
+        pip(cL, r5, ps, suit, true);
+        pip(cR, r5, ps, suit, true);
+        pip(cL, r6, ps, suit, true);
+        pip(cR, r6, ps, suit, true);
+        break;
+    }
+  }
+
+  // Draw a single pip at center position, optionally inverted (rotated 180°)
+  void pip(float pcx, float pcy, float ps, String suit, boolean inverted) {
+    if (inverted) {
+      pushMatrix();
+      translate(pcx, pcy);
+      rotate(PI);
+      drawSuit(-ps/2, -ps/2, ps, ps, suit);
+      popMatrix();
+    } else {
+      drawSuit(pcx - ps/2, pcy - ps/2, ps, ps, suit);
     }
   }
 

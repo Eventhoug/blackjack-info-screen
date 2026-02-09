@@ -39,9 +39,9 @@ PShape createHeartShape() {
   s.beginShape();
   s.noStroke();
   s.fill(200, 40, 40);
-  s.vertex(0, 0.5);
-  s.bezierVertex(1.2, -0.5, 1, -1.2, 0, -0.6);
-  s.bezierVertex(-1, -1.2, -1.2, -0.5, 0, 0.5);
+  s.vertex(0, 0.6);
+  s.bezierVertex(0.8, -0.2, 0.9, -1.0, 0, -0.5);
+  s.bezierVertex(-0.9, -1.0, -0.8, -0.2, 0, 0.6);
   s.endShape();
   return s;
 }
@@ -269,9 +269,9 @@ void drawSuit(float x, float y, float w, float h, String suit) {
   } else if (suit.equals("♥")) {
     // Heart
     beginShape();
-    vertex(0, 0.5);
-    bezierVertex(1.2, -0.5, 1, -1.2, 0, -0.6);
-    bezierVertex(-1, -1.2, -1.2, -0.5, 0, 0.5);
+    vertex(0, 0.6);
+    bezierVertex(0.8, -0.2, 0.9, -1.0, 0, -0.5);
+    bezierVertex(-0.9, -1.0, -0.8, -0.2, 0, 0.6);
     endShape();
   } else if (suit.equals("♣")) {
     // Club
