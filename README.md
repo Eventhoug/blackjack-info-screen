@@ -1,23 +1,23 @@
-# ♠ Blackjack Info Screen ♥
+# Blackjack Info Screen
 
 A professional blackjack game for info screens, built with **Processing (Java)**.
 
 ![Blackjack Game](https://img.shields.io/badge/Game-Blackjack-gold)
 ![Processing](https://img.shields.io/badge/Processing-Visuals-green)
 
-## ✨ visual Redesign
+## Visual Redesign
 
 - **Vector Graphics**: Suits (♠♥♦♣) are drawn mathematically, ensuring perfect rendering on any display without missing font glyphs.
 - **Casino Aesthetics**: Realistic green felt table, gold borders, and dynamic lighting effects.
 - **Polished UI**: Tactile buttons, clear status messages, and smooth card animations.
 
-## 🚀 Quick Start
+## Quick Start
 
 1. Install [Processing](https://processing.org/download)
 2. Open `BlackjackInfoScreen.pde`
 3. Click Run!
 
-## 🎮 Easy Integration
+## Easy Integration
 
 Copy the `.pde` files to your project and integrate with just a few lines:
 
@@ -43,7 +43,7 @@ void keyPressed() {
 }
 ```
 
-## 📁 Files
+## Files
 
 | File                      | Description                                         |
 | ------------------------- | --------------------------------------------------- |
@@ -51,7 +51,7 @@ void keyPressed() {
 | `BlackjackGame.pde`       | Main game class with drawing logic                  |
 | `Helpers.pde`             | Utilities: Card class, Buttons, Vector Suit drawing |
 
-## 🃏 Controls
+## Controls
 
 | Action | Mouse       | Keyboard |
 | ------ | ----------- | -------- |
@@ -59,10 +59,10 @@ void keyPressed() {
 | Hit    | Click HIT   | H        |
 | Stand  | Click STAND | S        |
 
-## 📜 License
+## License
 
 MIT License
 
 ---
 
-Made for HTX info screen displays ♠♥♦♣
+Made for HTX info screen displays
