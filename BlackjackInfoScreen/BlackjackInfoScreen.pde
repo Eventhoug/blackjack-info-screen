@@ -1,17 +1,16 @@
-// Main Processing Sketch - Blackjack Info Screen Game
-// Easy integration: just call BlackjackGame.display() in your draw() function
+// Blackjack Info Screen — main sketch entry point
+// Controls: D = deal, H = hit, S = stand  (or click the buttons)
 
 BlackjackGame blackjack;
 
 void setup() {
   fullScreen();
-  smooth(8); // Enable antialiasing for better quality
-  frameRate(60); // Cap at 60fps for optimal performance
+  smooth(8);
+  frameRate(60);
   blackjack = new BlackjackGame(0, 0, width, height);
 }
 
 void draw() {
-  // Simply call display() to render the game
   blackjack.display();
 }
 
