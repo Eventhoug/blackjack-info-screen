@@ -1,678 +1,595 @@
-// BlackjackGame Class - Easy to integrate into any Processing sketch
+// BlackjackGame - Fully self-contained blackjack game component
+// All inner classes prefixed with BJ to avoid naming conflicts
 // Usage:
 //   BlackjackGame game = new BlackjackGame(x, y, width, height);
-//   game.display();  // Call in draw()
-//   game.handleClick(mouseX, mouseY);  // Call in mousePressed()
+//   game.display();           // Call in draw()
+//   game.handleClick(mx, my); // Call in mousePressed()
+//   game.handleKey(k);        // Call in keyPressed()
 
 class BlackjackGame {
+
   // Position and size
-  float x, y, w, h;
+  float bjX, bjY, bjW, bjH;
+
+  // Auto-scaling (1920x1080 reference)
+  float bjScale = 1.0;
 
   // Game state
-  ArrayList<Card> playerHand;
-  ArrayList<Card> dealerHand;
-  ArrayList<Card> deck;
-  boolean gameActive = false;
-  boolean dealerRevealed = false;
-  String gameStatus = "Press DEAL to start";
-  String statusType = "";
+  ArrayList<BJCard> bjPlayerHand, bjDealerHand, bjDeck;
+  boolean bjGameActive = false;
+  boolean bjDealerRevealed = false;
+  String bjStatus = "Press DEAL to start";
+  String bjStatusType = "";
 
   // Stats
-  int wins = 0;
-  int losses = 0;
-  int ties = 0;
+  int bjWins = 0, bjLosses = 0, bjTies = 0;
 
   // Colors
-  color feltGreen = #35654d; // Casino Green
-  color feltDark = #204030;  // Darker shade for vignette
-  color goldColor = #d4af37;
-  color borderColor = #8b6914;
-  color textLight = color(255);
-  color textMuted = color(200);
+  final color BJ_FELT     = #35654d;
+  final color BJ_GOLD     = #d4af37;
+  final color BJ_RED      = #c0392b;
+  final color BJ_DARK     = #2c3e50;
+  final color BJ_WIN      = #2ecc71;
+  final color BJ_LOSE     = #e74c3c;
+  final color BJ_DEAL_CLR = #f1c40f;
 
   // Buttons
-  Button dealBtn, hitBtn, standBtn;
+  BJButton bjDealBtn, bjHitBtn, bjStandBtn;
 
-  // Animation
-  ArrayList<CardAnimation> animations;
+  // Animations
+  ArrayList<BJCardAnim> bjAnims;
 
-  // Performance optimization
-  PGraphics tableBuffer;
-  boolean needsRedraw = true;
+  // Cached table background
+  PGraphics bjTableBuf;
 
-  // Auto-scaling for fullscreen
-  float scale = 1.0;
-
+  // ── Constructor ──────────────────────────────────────────────
   BlackjackGame(float x, float y, float w, float h) {
-    this.x = x;
-    this.y = y;
-    this.w = w;
-    this.h = h;
+    bjX = x;  bjY = y;  bjW = w;  bjH = h;
+    bjScale = min(w / 1920.0, h / 1080.0);
 
-    // Calculate scale factor based on screen size (1920x1080 is reference)
-    float scaleX = w / 1920.0;
-    float scaleY = h / 1080.0;
-    scale = min(scaleX, scaleY); // Use the smaller scale to ensure everything fits
+    bjPlayerHand = new ArrayList<BJCard>();
+    bjDealerHand = new ArrayList<BJCard>();
+    bjDeck       = new ArrayList<BJCard>();
+    bjAnims      = new ArrayList<BJCardAnim>();
 
-    playerHand = new ArrayList<Card>();
-    dealerHand = new ArrayList<Card>();
-    deck = new ArrayList<Card>();
-    animations = new ArrayList<CardAnimation>();
+    // Buttons
+    float bw = 180 * bjScale, bh = 65 * bjScale, bs = 40 * bjScale;
+    float totalW = bw * 3 + bs * 2;
+    float bx = x + (w - totalW) / 2;
+    float by = y + h - 120 * bjScale;
 
-    // Create buttons - auto-scaled based on screen size
-    float btnY = y + h - (120 * scale);
-    float btnW = 180 * scale;
-    float btnH = 65 * scale;
-    float btnSpacing = 40 * scale;
-    float totalBtnW = btnW * 3 + btnSpacing * 2;
-    float btnStartX = x + (w - totalBtnW) / 2;
+    bjDealBtn  = new BJButton(bx, by, bw, bh, "DEAL",  BJ_DEAL_CLR, BJ_DARK);
+    bjHitBtn   = new BJButton(bx + bw + bs, by, bw, bh, "HIT", BJ_WIN, BJ_DARK);
+    bjStandBtn = new BJButton(bx + (bw + bs) * 2, by, bw, bh, "STAND", BJ_LOSE, #ecf0f1);
+    bjHitBtn.bjEnabled = false;
+    bjStandBtn.bjEnabled = false;
 
-    dealBtn = new Button(btnStartX, btnY, btnW, btnH, "DEAL", #f1c40f, #2c3e50);
-    hitBtn = new Button(btnStartX + btnW + btnSpacing, btnY, btnW, btnH, "HIT", #2ecc71, #2c3e50);
-    standBtn = new Button(btnStartX + (btnW + btnSpacing) * 2, btnY, btnW, btnH, "STAND", #e74c3c, #ecf0f1);
-
-    hitBtn.enabled = false;
-    standBtn.enabled = false;
-
-    // Create and cache table background
-    createTableBuffer();
+    buildTableBuffer();
   }
 
-  void createTableBuffer() {
-    tableBuffer = createGraphics(int(w), int(h));
-    tableBuffer.beginDraw();
-
-    // Single solid background shape - sharp corners
-    tableBuffer.noStroke();
-    tableBuffer.fill(feltGreen);
-    tableBuffer.rect(0, 0, w, h);
-
-    // Gold Border System - sharp corners
-    tableBuffer.noFill();
-    tableBuffer.strokeWeight(12);
-    tableBuffer.stroke(#5a4208); // Dark gold shadow
-    tableBuffer.rect(6, 6, w - 12, h - 12);
-
-    tableBuffer.strokeWeight(8);
-    tableBuffer.stroke(goldColor); // Main gold
-    tableBuffer.rect(6, 6, w - 12, h - 12);
-
-    tableBuffer.strokeWeight(2);
-    tableBuffer.stroke(255, 100); // Highlight
-    tableBuffer.rect(8, 8, w - 16, h - 16);
-
-    tableBuffer.endDraw();
+  // ── Cached table background ──────────────────────────────────
+  void buildTableBuffer() {
+    bjTableBuf = createGraphics(int(bjW), int(bjH));
+    bjTableBuf.beginDraw();
+    bjTableBuf.noStroke();
+    bjTableBuf.fill(BJ_FELT);
+    bjTableBuf.rect(0, 0, bjW, bjH);
+    bjTableBuf.noFill();
+    bjTableBuf.strokeWeight(12);
+    bjTableBuf.stroke(#5a4208);
+    bjTableBuf.rect(6, 6, bjW - 12, bjH - 12);
+    bjTableBuf.strokeWeight(8);
+    bjTableBuf.stroke(BJ_GOLD);
+    bjTableBuf.rect(6, 6, bjW - 12, bjH - 12);
+    bjTableBuf.strokeWeight(2);
+    bjTableBuf.stroke(255, 100);
+    bjTableBuf.rect(8, 8, bjW - 16, bjH - 16);
+    bjTableBuf.endDraw();
   }
 
+  // ── Main display (call in draw()) ────────────────────────────
   void display() {
     pushMatrix();
-    translate(x, y);
+    translate(bjX, bjY);
 
-    // Draw casino table
-    drawTable();
-
-    // Draw header
-    drawHeader();
-
-    // Draw table rules
-    drawRules();
-
-    // Draw hands
-    drawHands();
-
-    // Draw status
-    drawStatus();
-
-    // Draw buttons
-    dealBtn.display();
-    hitBtn.display();
-    standBtn.display();
-
-    // Update animations
-    updateAnimations();
+    if (bjTableBuf != null) image(bjTableBuf, 0, 0);
+    renderHeader();
+    renderRules();
+    renderHands();
+    renderStatus();
+    bjDealBtn.render();
+    bjHitBtn.render();
+    bjStandBtn.render();
+    tickAnimations();
 
     popMatrix();
   }
 
-  void drawTable() {
-    // Use pre-rendered cached buffer - massive performance boost!
-    if (tableBuffer != null) {
-      image(tableBuffer, 0, 0);
-    }
-  }
-
-  void drawHeader() {
-    // Title
+  // ── Header ───────────────────────────────────────────────────
+  void renderHeader() {
     textAlign(CENTER, CENTER);
+    fill(0, 80);  noStroke();
+    rect(bjW/2 - 250*bjScale, 25*bjScale, 500*bjScale, 75*bjScale, 30*bjScale);
+    textSize(52 * bjScale);
+    fill(BJ_GOLD);
+    text("BLACKJACK", bjW/2, 60*bjScale);
 
-    // Header Background
-    fill(0, 80);
-    noStroke();
-    rect(w/2 - 250*scale, 25*scale, 500*scale, 75*scale, 30*scale);
-
-    textSize(52*scale);
-    fill(goldColor);
-    text("BLACKJACK", w/2, 60*scale);
-
-    // Stats Container - auto-scaled
-    float statY = 50*scale;
-    float statStartX = w - 480*scale;
-
+    float sx = bjW - 480*bjScale, sy = 50*bjScale;
     fill(0, 60);
-    rect(statStartX - 25*scale, 20*scale, 440*scale, 85*scale, 15*scale);
-
-    drawStat("WINS", wins, statStartX + 50*scale, statY);
-    drawStat("LOSSES", losses, statStartX + 195*scale, statY);
-    drawStat("TIES", ties, statStartX + 340*scale, statY);
+    rect(sx - 25*bjScale, 20*bjScale, 440*bjScale, 85*bjScale, 15*bjScale);
+    renderStat("WINS",   bjWins,   sx + 50*bjScale,  sy);
+    renderStat("LOSSES", bjLosses, sx + 195*bjScale, sy);
+    renderStat("TIES",   bjTies,   sx + 340*bjScale, sy);
   }
 
-  void drawStat(String label, int value, float x, float y) {
+  void renderStat(String lbl, int val, float sx, float sy) {
     textAlign(CENTER);
-    textSize(16*scale);
-    fill(textMuted);
-    text(label, x, y);
-    textSize(34*scale);
-    fill(textLight);
-    text(value, x, y + 30*scale);
+    textSize(16 * bjScale);  fill(200);  text(lbl, sx, sy);
+    textSize(34 * bjScale);  fill(255);  text(val, sx, sy + 30*bjScale);
   }
 
-  void drawRules() {
+  // ── Rules banner ─────────────────────────────────────────────
+  void renderRules() {
     textAlign(CENTER, CENTER);
-
-    // Add semi-transparent background for better visibility
-    fill(0, 100);
-    noStroke();
-    rect(w/2 - 420*scale, h/2 - 60*scale, 840*scale, 60*scale, 15*scale);
-
+    fill(0, 100);  noStroke();
+    rect(bjW/2 - 420*bjScale, bjH/2 - 60*bjScale, 840*bjScale, 60*bjScale, 15*bjScale);
     fill(255, 200);
-    textSize(24*scale);
-    text("DEALER STANDS ON SOFT 17", w/2, h/2 - 30*scale);
+    textSize(24 * bjScale);
+    text("DEALER STANDS ON SOFT 17", bjW/2, bjH/2 - 30*bjScale);
   }
 
-  void drawHands() {
-    float cardW = 130*scale;
-    float cardH = 182*scale;
-    float cardSpacing = 25*scale;
+  // ── Hands ────────────────────────────────────────────────────
+  void renderHands() {
+    float cw = 130*bjScale, ch = 182*bjScale, cs = 25*bjScale;
 
-    // Dealer hand
-    float dealerY = 200*scale;
-    textAlign(LEFT, CENTER);
-    textSize(24*scale);
-    fill(textMuted);
-    text("DEALER", w/2 - 380*scale, dealerY - 40*scale);
+    // Dealer
+    float dy = 200 * bjScale;
+    textAlign(LEFT, CENTER); textSize(24*bjScale); fill(200);
+    text("DEALER", bjW/2 - 380*bjScale, dy - 40*bjScale);
+    int dv = bjDealerRevealed ? handValue(bjDealerHand) : visibleDealerValue();
+    renderBubble(str(dv), bjW/2 + 320*bjScale, dy - 40*bjScale);
 
-    // Dealer value bubble - show just the value without ?
-    int dealerVal = dealerRevealed ? calculateHandValue(dealerHand) : getVisibleDealerValue();
-    String dealerValStr = str(dealerVal);
-    drawValueBubble(dealerValStr, w/2 + 320*scale, dealerY - 40*scale);
-
-    // Draw dealer cards
-    float startX = (w - (dealerHand.size() * (cardW + cardSpacing))) / 2;
-    for (int i = 0; i < dealerHand.size(); i++) {
-      Card card = dealerHand.get(i);
-      boolean hidden = (i == 1 && !dealerRevealed);
-      drawCard(startX + i * (cardW + cardSpacing), dealerY, cardW, cardH, card, hidden);
+    float sx = (bjW - bjDealerHand.size() * (cw + cs)) / 2;
+    for (int i = 0; i < bjDealerHand.size(); i++) {
+      boolean hidden = (i == 1 && !bjDealerRevealed);
+      renderCard(sx + i*(cw+cs), dy, cw, ch, bjDealerHand.get(i), hidden);
     }
 
-    // Player hand
-    float playerY = h - 340*scale;
-    textAlign(LEFT, CENTER);
-    textSize(24*scale);
-    fill(textMuted);
-    text("PLAYER", w/2 - 380*scale, playerY - 40*scale);
+    // Player
+    float py = bjH - 340*bjScale;
+    textAlign(LEFT, CENTER); textSize(24*bjScale); fill(200);
+    text("PLAYER", bjW/2 - 380*bjScale, py - 40*bjScale);
+    renderBubble(str(handValue(bjPlayerHand)), bjW/2 + 320*bjScale, py - 40*bjScale);
 
-    // Player value bubble
-    int playerVal = calculateHandValue(playerHand);
-    drawValueBubble(str(playerVal), w/2 + 320*scale, playerY - 40*scale);
-
-    // Draw player cards
-    startX = (w - (playerHand.size() * (cardW + cardSpacing))) / 2;
-    for (int i = 0; i < playerHand.size(); i++) {
-      Card card = playerHand.get(i);
-      drawCard(startX + i * (cardW + cardSpacing), playerY, cardW, cardH, card, false);
+    sx = (bjW - bjPlayerHand.size() * (cw + cs)) / 2;
+    for (int i = 0; i < bjPlayerHand.size(); i++) {
+      renderCard(sx + i*(cw+cs), py, cw, ch, bjPlayerHand.get(i), false);
     }
   }
 
-  void drawValueBubble(String val, float x, float y) {
-    noStroke();
-    fill(0, 150);
-    ellipse(x, y, 50*scale, 50*scale);
-    stroke(goldColor);
-    strokeWeight(3*scale);
-    noFill();
-    ellipse(x, y, 50*scale, 50*scale);
-
-    fill(goldColor);
-    textSize(26*scale);
-    textAlign(CENTER, CENTER);
-    text(val, x, y - 2);
+  void renderBubble(String val, float bx, float by) {
+    float d = 50 * bjScale;
+    noStroke(); fill(0, 150);  ellipse(bx, by, d, d);
+    stroke(BJ_GOLD); strokeWeight(3*bjScale); noFill(); ellipse(bx, by, d, d);
+    fill(BJ_GOLD); textSize(26*bjScale); textAlign(CENTER, CENTER);
+    text(val, bx, by - 2);
   }
 
-  void drawCard(float cx, float cy, float cw, float ch, Card card, boolean hidden) {
-    // Shadow
-    noStroke();
-    fill(0, 50);
-    rect(cx + 6*scale, cy + 6*scale, cw, ch, 10*scale);
+  // ── Card rendering ───────────────────────────────────────────
+  void renderCard(float cx, float cy, float cw, float ch, BJCard card, boolean hidden) {
+    noStroke(); fill(0, 50);
+    rect(cx + 6*bjScale, cy + 6*bjScale, cw, ch, 10*bjScale);
 
     if (hidden) {
-      // Card Back
-      stroke(255);
-      strokeWeight(3*scale);
-      fill(#2c3e50); // Dark Blue
-      rect(cx, cy, cw, ch, 10*scale);
-
-      // Pattern
-      noStroke();
-      fill(255, 15);
+      stroke(255); strokeWeight(3*bjScale); fill(BJ_DARK);
+      rect(cx, cy, cw, ch, 10*bjScale);
+      noStroke(); fill(255, 15);
       ellipse(cx + cw/2, cy + ch/2, cw*0.6, cw*0.6);
-      fill(255, 100);
-      textSize(24*scale);
-      textAlign(CENTER, CENTER);
+      fill(255, 100); textSize(24*bjScale); textAlign(CENTER, CENTER);
       text("BJ", cx + cw/2, cy + ch/2);
     } else {
-      // Card Front
-      stroke(200);
-      strokeWeight(1*scale);
-      fill(245); // Warm White
-      rect(cx, cy, cw, ch, 10*scale);
+      stroke(200); strokeWeight(bjScale); fill(245);
+      rect(cx, cy, cw, ch, 10*bjScale);
 
-      // Determine Color
-      boolean isRed = card.suit.equals("♥") || card.suit.equals("♦");
-      color txtColor = isRed ? #c0392b : #2c3e50;
+      boolean red = card.bjSuit.equals("\u2665") || card.bjSuit.equals("\u2666");
+      color tc = red ? BJ_RED : BJ_DARK;
+      fill(tc);
 
-      fill(txtColor);
+      // Top rank
+      textAlign(CENTER, TOP); textSize(cw * 0.22);
+      text(card.bjRank, cx + cw*0.20, cy + ch*0.07);
 
-      // Top Corner - scaled
-      textAlign(CENTER, TOP);
-      textSize(cw * 0.22);
-      text(card.rank, cx + cw * 0.20, cy + ch * 0.07);
+      // Pips
+      renderPips(cx, cy, cw, ch, card);
 
-      // Draw pip pattern based on card rank
-      drawCardPips(cx, cy, cw, ch, card);
-
-      // Bottom Corner (Rotated)
+      // Bottom rank (rotated)
       pushMatrix();
-      translate(cx + cw - cw * 0.20, cy + ch - ch * 0.07);
-      rotate(PI);
-      fill(txtColor); // Reset fill after rotate
-      textSize(cw * 0.22);
-      text(card.rank, 0, 0);
+      translate(cx + cw - cw*0.20, cy + ch - ch*0.07);
+      rotate(PI); fill(tc); textSize(cw * 0.22);
+      text(card.bjRank, 0, 0);
       popMatrix();
     }
   }
 
-  // Draw correct number of suit pips arranged like real playing cards
-  void drawCardPips(float cx, float cy, float cw, float ch, Card card) {
-    String rank = card.rank;
-    String suit = card.suit;
+  // ── Pip layouts ──────────────────────────────────────────────
+  void renderPips(float cx, float cy, float cw, float ch, BJCard card) {
+    String r = card.bjRank, s = card.bjSuit;
 
-    // Ace - one large center pip
-    if (rank.equals("A")) {
-      float ps = cw * 0.42;
-      drawSuit(cx + cw/2 - ps/2, cy + ch/2 - ps/2, ps, ps, suit);
+    if (r.equals("A")) {
+      float p = cw * 0.42;
+      renderSuit(cx + cw/2 - p/2, cy + ch/2 - p/2, p, p, s);
+      return;
+    }
+    if (r.equals("J") || r.equals("Q") || r.equals("K")) {
+      float p = cw * 0.38;
+      renderSuit(cx + cw/2 - p/2, cy + ch/2 - p/2, p, p, s);
       return;
     }
 
-    // Face cards (J, Q, K) - large suit in center
-    if (rank.equals("J") || rank.equals("Q") || rank.equals("K")) {
-      float ps = cw * 0.38;
-      drawSuit(cx + cw/2 - ps/2, cy + ch/2 - ps/2, ps, ps, suit);
-      return;
-    }
+    int n = int(r);
+    float p = cw * 0.13;
+    float xL = cx + cw*0.33, xC = cx + cw*0.50, xR = cx + cw*0.67;
+    float y0 = cy+ch*0.28, y1 = cy+ch*0.37, y2 = cy+ch*0.41;
+    float y3 = cy+ch*0.50, y4 = cy+ch*0.59, y5 = cy+ch*0.63, y6 = cy+ch*0.72;
 
-    // Number cards (2-10)
-    int num = int(rank);
-    float ps = cw * 0.13;
-
-    // Column x-positions (center of pip)
-    float cL = cx + cw * 0.33;
-    float cC = cx + cw * 0.50;
-    float cR = cx + cw * 0.67;
-
-    // Row y-positions (center of pip) - within the card body area
-    float r0 = cy + ch * 0.28;
-    float r1 = cy + ch * 0.37;
-    float r2 = cy + ch * 0.41;
-    float r3 = cy + ch * 0.50;
-    float r4 = cy + ch * 0.59;
-    float r5 = cy + ch * 0.63;
-    float r6 = cy + ch * 0.72;
-
-    switch(num) {
+    switch(n) {
       case 2:
-        pip(cC, r0, ps, suit, false);
-        pip(cC, r6, ps, suit, true);
-        break;
+        placePip(xC,y0,p,s,false); placePip(xC,y6,p,s,true); break;
       case 3:
-        pip(cC, r0, ps, suit, false);
-        pip(cC, r3, ps, suit, false);
-        pip(cC, r6, ps, suit, true);
-        break;
+        placePip(xC,y0,p,s,false); placePip(xC,y3,p,s,false); placePip(xC,y6,p,s,true); break;
       case 4:
-        pip(cL, r0, ps, suit, false);
-        pip(cR, r0, ps, suit, false);
-        pip(cL, r6, ps, suit, true);
-        pip(cR, r6, ps, suit, true);
-        break;
+        placePip(xL,y0,p,s,false); placePip(xR,y0,p,s,false);
+        placePip(xL,y6,p,s,true);  placePip(xR,y6,p,s,true);  break;
       case 5:
-        pip(cL, r0, ps, suit, false);
-        pip(cR, r0, ps, suit, false);
-        pip(cC, r3, ps, suit, false);
-        pip(cL, r6, ps, suit, true);
-        pip(cR, r6, ps, suit, true);
-        break;
+        placePip(xL,y0,p,s,false); placePip(xR,y0,p,s,false);
+        placePip(xC,y3,p,s,false);
+        placePip(xL,y6,p,s,true);  placePip(xR,y6,p,s,true);  break;
       case 6:
-        pip(cL, r0, ps, suit, false);
-        pip(cR, r0, ps, suit, false);
-        pip(cL, r3, ps, suit, false);
-        pip(cR, r3, ps, suit, false);
-        pip(cL, r6, ps, suit, true);
-        pip(cR, r6, ps, suit, true);
-        break;
+        placePip(xL,y0,p,s,false); placePip(xR,y0,p,s,false);
+        placePip(xL,y3,p,s,false); placePip(xR,y3,p,s,false);
+        placePip(xL,y6,p,s,true);  placePip(xR,y6,p,s,true);  break;
       case 7:
-        pip(cL, r0, ps, suit, false);
-        pip(cR, r0, ps, suit, false);
-        pip(cL, r3, ps, suit, false);
-        pip(cR, r3, ps, suit, false);
-        pip(cC, r2, ps, suit, false);
-        pip(cL, r6, ps, suit, true);
-        pip(cR, r6, ps, suit, true);
-        break;
+        placePip(xL,y0,p,s,false); placePip(xR,y0,p,s,false);
+        placePip(xL,y3,p,s,false); placePip(xR,y3,p,s,false);
+        placePip(xC,y2,p,s,false);
+        placePip(xL,y6,p,s,true);  placePip(xR,y6,p,s,true);  break;
       case 8:
-        pip(cL, r0, ps, suit, false);
-        pip(cR, r0, ps, suit, false);
-        pip(cL, r3, ps, suit, false);
-        pip(cR, r3, ps, suit, false);
-        pip(cC, r2, ps, suit, false);
-        pip(cC, r4, ps, suit, true);
-        pip(cL, r6, ps, suit, true);
-        pip(cR, r6, ps, suit, true);
-        break;
+        placePip(xL,y0,p,s,false); placePip(xR,y0,p,s,false);
+        placePip(xL,y3,p,s,false); placePip(xR,y3,p,s,false);
+        placePip(xC,y2,p,s,false); placePip(xC,y4,p,s,true);
+        placePip(xL,y6,p,s,true);  placePip(xR,y6,p,s,true);  break;
       case 9:
-        pip(cL, r0, ps, suit, false);
-        pip(cR, r0, ps, suit, false);
-        pip(cL, r1, ps, suit, false);
-        pip(cR, r1, ps, suit, false);
-        pip(cC, r3, ps, suit, false);
-        pip(cL, r5, ps, suit, true);
-        pip(cR, r5, ps, suit, true);
-        pip(cL, r6, ps, suit, true);
-        pip(cR, r6, ps, suit, true);
-        break;
+        placePip(xL,y0,p,s,false); placePip(xR,y0,p,s,false);
+        placePip(xL,y1,p,s,false); placePip(xR,y1,p,s,false);
+        placePip(xC,y3,p,s,false);
+        placePip(xL,y5,p,s,true);  placePip(xR,y5,p,s,true);
+        placePip(xL,y6,p,s,true);  placePip(xR,y6,p,s,true);  break;
       case 10:
-        pip(cL, r0, ps, suit, false);
-        pip(cR, r0, ps, suit, false);
-        pip(cL, r1, ps, suit, false);
-        pip(cR, r1, ps, suit, false);
-        pip(cC, r2, ps, suit, false);
-        pip(cC, r4, ps, suit, true);
-        pip(cL, r5, ps, suit, true);
-        pip(cR, r5, ps, suit, true);
-        pip(cL, r6, ps, suit, true);
-        pip(cR, r6, ps, suit, true);
-        break;
+        placePip(xL,y0,p,s,false); placePip(xR,y0,p,s,false);
+        placePip(xL,y1,p,s,false); placePip(xR,y1,p,s,false);
+        placePip(xC,y2,p,s,false); placePip(xC,y4,p,s,true);
+        placePip(xL,y5,p,s,true);  placePip(xR,y5,p,s,true);
+        placePip(xL,y6,p,s,true);  placePip(xR,y6,p,s,true);  break;
     }
   }
 
-  // Draw a single pip at center position, optionally inverted (rotated 180°)
-  void pip(float pcx, float pcy, float ps, String suit, boolean inverted) {
-    if (inverted) {
-      pushMatrix();
-      translate(pcx, pcy);
-      rotate(PI);
-      drawSuit(-ps/2, -ps/2, ps, ps, suit);
+  void placePip(float px, float py, float ps, String suit, boolean flip) {
+    if (flip) {
+      pushMatrix(); translate(px, py); rotate(PI);
+      renderSuit(-ps/2, -ps/2, ps, ps, suit);
       popMatrix();
     } else {
-      drawSuit(pcx - ps/2, pcy - ps/2, ps, ps, suit);
+      renderSuit(px - ps/2, py - ps/2, ps, ps, suit);
     }
   }
 
-  void drawStatus() {
-    if (gameStatus.length() == 0) return;
-
-    float statusY = h/2 + 90*scale;
-    textSize(30*scale);
-    float sw = textWidth(gameStatus) + 80*scale;
-
-    // Pill Background
+  // ── Vector suit drawing ──────────────────────────────────────
+  void renderSuit(float sx, float sy, float sw, float sh, String suit) {
+    pushMatrix();
+    pushStyle();
+    translate(sx + sw/2, sy + sh/2);
+    float sz = min(sw, sh);
+    scale(sz / 2.0);
     noStroke();
-    fill(20, 20, 20, 200);
-    rect((w - sw)/2, statusY - 38*scale, sw, 76*scale, 38*scale);
 
-    // Colored Border based on state
-    if (statusType.equals("win")) stroke(#2ecc71);
-    else if (statusType.equals("lose")) stroke(#e74c3c);
-    else if (statusType.equals("blackjack")) stroke(#f1c40f);
-    else stroke(255, 100);
+    boolean red = suit.equals("\u2665") || suit.equals("\u2666");
+    fill(red ? color(200, 40, 40) : color(40));
 
-    strokeWeight(4*scale);
-    noFill();
-    rect((w - sw)/2, statusY - 38*scale, sw, 76*scale, 38*scale);
+    if (suit.equals("\u2660")) {           // Spade
+      beginShape();
+      vertex(0, -1);
+      bezierVertex(0.5, -0.5, 0.9, 0, 0.9, 0.4);
+      bezierVertex(0.9, 0.8, 0, 0.3, 0, 0.3);
+      bezierVertex(0, 0.3, -0.9, 0.8, -0.9, 0.4);
+      bezierVertex(-0.9, 0, -0.5, -0.5, 0, -1);
+      endShape();
+      beginShape();
+      vertex(0, 0.3);
+      bezierVertex(0.1, 0.6, 0.3, 0.9, 0.5, 1);
+      vertex(-0.5, 1);
+      bezierVertex(-0.3, 0.9, -0.1, 0.6, 0, 0.3);
+      endShape();
+    } else if (suit.equals("\u2665")) {    // Heart
+      beginShape();
+      vertex(0, 0.6);
+      bezierVertex(0.8, -0.2, 0.9, -1.0, 0, -0.5);
+      bezierVertex(-0.9, -1.0, -0.8, -0.2, 0, 0.6);
+      endShape();
+    } else if (suit.equals("\u2663")) {    // Club
+      float cr = 0.55;
+      ellipse(0, -0.5, cr, cr);
+      ellipse(-0.45, 0.15, cr, cr);
+      ellipse(0.45, 0.15, cr, cr);
+      beginShape();
+      vertex(0, 0);
+      bezierVertex(0.1, 0.6, 0.3, 0.9, 0.5, 1);
+      vertex(-0.5, 1);
+      bezierVertex(-0.3, 0.9, -0.1, 0.6, 0, 0);
+      endShape();
+    } else if (suit.equals("\u2666")) {    // Diamond
+      beginShape();
+      vertex(0, -1);  vertex(0.8, 0);  vertex(0, 1);  vertex(-0.8, 0);
+      endShape(CLOSE);
+    }
 
-    // Text
-    fill(255);
-    if (statusType.equals("blackjack")) fill(#f1c40f);
-    textAlign(CENTER, CENTER);
-    text(gameStatus, w/2, statusY - 4);
+    popStyle();
+    popMatrix();
   }
 
-  void updateAnimations() {
-    for (int i = animations.size() - 1; i >= 0; i--) {
-      CardAnimation anim = animations.get(i);
-      anim.update();
-      if (anim.finished) {
-        animations.remove(i);
-      }
+  // ── Status bar ───────────────────────────────────────────────
+  void renderStatus() {
+    if (bjStatus.length() == 0) return;
+    float sy = bjH/2 + 90*bjScale;
+    textSize(30 * bjScale);
+    float sw = textWidth(bjStatus) + 80*bjScale;
+
+    noStroke(); fill(20, 20, 20, 200);
+    rect((bjW-sw)/2, sy - 38*bjScale, sw, 76*bjScale, 38*bjScale);
+
+    if      (bjStatusType.equals("win"))       stroke(BJ_WIN);
+    else if (bjStatusType.equals("lose"))      stroke(BJ_LOSE);
+    else if (bjStatusType.equals("blackjack")) stroke(BJ_DEAL_CLR);
+    else                                       stroke(255, 100);
+
+    strokeWeight(4*bjScale); noFill();
+    rect((bjW-sw)/2, sy - 38*bjScale, sw, 76*bjScale, 38*bjScale);
+
+    fill(255);
+    if (bjStatusType.equals("blackjack")) fill(BJ_DEAL_CLR);
+    textAlign(CENTER, CENTER);
+    text(bjStatus, bjW/2, sy - 4);
+  }
+
+  // ── Animations ───────────────────────────────────────────────
+  void tickAnimations() {
+    for (int i = bjAnims.size() - 1; i >= 0; i--) {
+      bjAnims.get(i).tick();
+      if (bjAnims.get(i).bjDone) bjAnims.remove(i);
     }
   }
 
-  // Handle mouse clicks
+  // ── Input ────────────────────────────────────────────────────
   void handleClick(float mx, float my) {
-    // Convert global mouse coordinates to local game coordinates
-    float localX = mx - x;
-    float localY = my - y;
-
-    if (dealBtn.isClicked(localX, localY) && dealBtn.enabled) startGame();
-    if (hitBtn.isClicked(localX, localY) && hitBtn.enabled) hit();
-    if (standBtn.isClicked(localX, localY) && standBtn.enabled) stand();
+    float lx = mx - bjX, ly = my - bjY;
+    if (bjDealBtn.isHit(lx, ly)  && bjDealBtn.bjEnabled)  startGame();
+    if (bjHitBtn.isHit(lx, ly)   && bjHitBtn.bjEnabled)   hit();
+    if (bjStandBtn.isHit(lx, ly) && bjStandBtn.bjEnabled)  stand();
   }
 
-  // Handle key presses
   void handleKey(char k) {
     if (k == 'd' || k == 'D') startGame();
-    if ((k == 'h' || k == 'H') && hitBtn.enabled) hit();
-    if ((k == 's' || k == 'S') && standBtn.enabled) stand();
+    if ((k == 'h' || k == 'H') && bjHitBtn.bjEnabled)   hit();
+    if ((k == 's' || k == 'S') && bjStandBtn.bjEnabled)  stand();
   }
 
-  // Game logic (Deck, Values, etc.)
-  void createDeck() {
-    deck.clear();
-    String[] suits = {"♠", "♥", "♦", "♣"};
-    String[] ranks = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"};
+  // ── Deck management ──────────────────────────────────────────
+  void buildDeck() {
+    bjDeck.clear();
+    String[] suits = {"\u2660", "\u2665", "\u2666", "\u2663"};
+    String[] ranks = {"A","2","3","4","5","6","7","8","9","10","J","Q","K"};
+    for (String s : suits)
+      for (String r : ranks)
+        bjDeck.add(new BJCard(s, r));
 
-    for (String suit : suits) {
-      for (String rank : ranks) {
-        deck.add(new Card(suit, rank));
-      }
-    }
-
-    // Shuffle - using constrained random to prevent array bounds issues
-    for (int i = deck.size() - 1; i > 0; i--) {
-      int j = int(random(i + 1));
-      // Safety: ensure j is within valid bounds
-      j = constrain(j, 0, i);
-      Card temp = deck.get(i);
-      deck.set(i, deck.get(j));
-      deck.set(j, temp);
+    for (int i = bjDeck.size() - 1; i > 0; i--) {
+      int j = constrain(int(random(i + 1)), 0, i);
+      BJCard tmp = bjDeck.get(i);
+      bjDeck.set(i, bjDeck.get(j));
+      bjDeck.set(j, tmp);
     }
   }
 
-  Card drawCardFromDeck() {
-    if (deck.size() == 0) {
-      createDeck();
-    }
-    if (deck.size() == 0) {
-      // Emergency fallback - should never happen
-      return new Card("♠", "A");
-    }
-    return deck.remove(deck.size() - 1);
+  BJCard pullCard() {
+    if (bjDeck.size() == 0) buildDeck();
+    return bjDeck.remove(bjDeck.size() - 1);
   }
 
-  int calculateHandValue(ArrayList<Card> hand) {
-    int value = 0;
-    int aces = 0;
-
-    for (Card card : hand) {
-      if (card.rank.equals("A")) {
-        aces++;
-        value += 11;
-      } else if (card.rank.equals("K") || card.rank.equals("Q") || card.rank.equals("J")) {
-        value += 10;
-      } else {
-        value += int(card.rank);
-      }
+  // ── Hand evaluation ──────────────────────────────────────────
+  int handValue(ArrayList<BJCard> hand) {
+    int v = 0, aces = 0;
+    for (BJCard c : hand) {
+      if      (c.bjRank.equals("A"))                                                    { aces++; v += 11; }
+      else if (c.bjRank.equals("K") || c.bjRank.equals("Q") || c.bjRank.equals("J"))   { v += 10; }
+      else                                                                              { v += int(c.bjRank); }
     }
-
-    while (value > 21 && aces > 0) {
-      value -= 10;
-      aces--;
-    }
-
-    return value;
+    while (v > 21 && aces > 0) { v -= 10; aces--; }
+    return v;
   }
 
-  int getVisibleDealerValue() {
-    if (dealerHand.size() == 0) return 0;
-    Card first = dealerHand.get(0);
-    if (first.rank.equals("A")) return 11;
-    if (first.rank.equals("K") || first.rank.equals("Q") || first.rank.equals("J")) return 10;
-    return int(first.rank);
+  int visibleDealerValue() {
+    if (bjDealerHand.size() == 0) return 0;
+    BJCard f = bjDealerHand.get(0);
+    if (f.bjRank.equals("A")) return 11;
+    if (f.bjRank.equals("K") || f.bjRank.equals("Q") || f.bjRank.equals("J")) return 10;
+    return int(f.bjRank);
   }
 
-  boolean isBlackjack(ArrayList<Card> hand) {
-    return hand.size() == 2 && calculateHandValue(hand) == 21;
+  boolean isBlackjack(ArrayList<BJCard> hand) {
+    return hand.size() == 2 && handValue(hand) == 21;
   }
 
+  // ── Game flow ────────────────────────────────────────────────
   void startGame() {
-    createDeck();
-    playerHand.clear();
-    dealerHand.clear();
-    animations.clear();
-    gameActive = true;
-    dealerRevealed = false;
+    buildDeck();
+    bjPlayerHand.clear();
+    bjDealerHand.clear();
+    bjAnims.clear();
+    bjGameActive = true;
+    bjDealerRevealed = false;
 
-    // Deal with animation
-    float deckX = w/2 - 65*scale;
-    float deckY = h/2 - 90*scale;
-    float cardW = 130*scale;
-    float cardSpacing = 25*scale;
+    float deckX = bjW/2 - 65*bjScale, deckY = bjH/2 - 90*bjScale;
+    float cw = 130*bjScale, cs = 25*bjScale;
+    float dy = 200*bjScale, py = bjH - 340*bjScale;
 
-    // Calculate positions
-    float dealerY = 200*scale;
-    float playerY = h - 340*scale;
+    // Deal 4 cards with animations
+    bjPlayerHand.add(pullCard());
+    float p1 = (bjW - 2*(cw+cs)) / 2;
+    bjAnims.add(new BJCardAnim(deckX, deckY, p1, py));
 
-    // Deal cards with staggered animation
-    Card c1 = drawCardFromDeck();
-    playerHand.add(c1);
-    float p1X = (w - (2 * (cardW + cardSpacing))) / 2;
-    animations.add(new CardAnimation(deckX, deckY, p1X, playerY));
+    bjDealerHand.add(pullCard());
+    bjAnims.add(new BJCardAnim(deckX, deckY, p1, dy));
 
-    Card c2 = drawCardFromDeck();
-    dealerHand.add(c2);
-    float d1X = (w - (2 * (cardW + cardSpacing))) / 2;
-    animations.add(new CardAnimation(deckX, deckY, d1X, dealerY));
+    bjPlayerHand.add(pullCard());
+    bjAnims.add(new BJCardAnim(deckX, deckY, p1 + cw + cs, py));
 
-    Card c3 = drawCardFromDeck();
-    playerHand.add(c3);
-    float p2X = p1X + cardW + cardSpacing;
-    animations.add(new CardAnimation(deckX, deckY, p2X, playerY));
+    bjDealerHand.add(pullCard());
+    bjAnims.add(new BJCardAnim(deckX, deckY, p1 + cw + cs, dy));
 
-    Card c4 = drawCardFromDeck();
-    dealerHand.add(c4);
-    float d2X = d1X + cardW + cardSpacing;
-    animations.add(new CardAnimation(deckX, deckY, d2X, dealerY));
-
-    if (isBlackjack(playerHand)) {
-      if (isBlackjack(dealerHand)) {
-        endGame("tie", "Both have Blackjack! Push!");
-      } else {
-        endGame("blackjack", "BLACKJACK!");
-      }
+    if (isBlackjack(bjPlayerHand)) {
+      if (isBlackjack(bjDealerHand)) { endGame("tie", "Both have Blackjack! Push!"); }
+      else                           { endGame("blackjack", "BLACKJACK!"); }
       return;
     }
+    if (isBlackjack(bjDealerHand)) { endGame("lose", "Dealer has Blackjack!"); return; }
 
-    if (isBlackjack(dealerHand)) {
-      endGame("lose", "Dealer has Blackjack!");
-      return;
-    }
-
-    gameStatus = "Your turn - Hit or Stand?";
-    statusType = "";
-    dealBtn.enabled = false;
-    hitBtn.enabled = true;
-    standBtn.enabled = true;
+    bjStatus = "Your turn - Hit or Stand?";
+    bjStatusType = "";
+    bjDealBtn.bjEnabled  = false;
+    bjHitBtn.bjEnabled   = true;
+    bjStandBtn.bjEnabled = true;
   }
 
   void hit() {
-    if (!gameActive) return;
-
-    playerHand.add(drawCardFromDeck());
-    int playerValue = calculateHandValue(playerHand);
-
-    if (playerValue > 21) {
-      endGame("lose", "Bust! You went over 21");
-    } else if (playerValue == 21) {
-      stand();
-    }
+    if (!bjGameActive) return;
+    bjPlayerHand.add(pullCard());
+    int pv = handValue(bjPlayerHand);
+    if      (pv > 21) endGame("lose", "Bust! You went over 21");
+    else if (pv == 21) stand();
   }
 
   void stand() {
-    if (!gameActive) return;
-
-    hitBtn.enabled = false;
-    standBtn.enabled = false;
-    dealerRevealed = true;
-    gameStatus = "Dealer's turn...";
-
+    if (!bjGameActive) return;
+    bjHitBtn.bjEnabled = false;
+    bjStandBtn.bjEnabled = false;
+    bjDealerRevealed = true;
+    bjStatus = "Dealer's turn...";
     dealerPlay();
   }
 
   void dealerPlay() {
-    int dealerValue = calculateHandValue(dealerHand);
-    int playerValue = calculateHandValue(playerHand);
+    int dv = handValue(bjDealerHand);
+    int pv = handValue(bjPlayerHand);
+    while (dv < 17) { bjDealerHand.add(pullCard()); dv = handValue(bjDealerHand); }
 
-    while (dealerValue < 17) {
-      dealerHand.add(drawCardFromDeck());
-      dealerValue = calculateHandValue(dealerHand);
-    }
-
-    if (dealerValue > 21) {
-      endGame("win", "Dealer busts! You win!");
-    } else if (dealerValue > playerValue) {
-      endGame("lose", "Dealer wins with " + dealerValue);
-    } else if (playerValue > dealerValue) {
-      endGame("win", "You win with " + playerValue + "!");
-    } else {
-      endGame("tie", "Push! It's a tie");
-    }
+    if      (dv > 21)  endGame("win",  "Dealer busts! You win!");
+    else if (dv > pv)  endGame("lose", "Dealer wins with " + dv);
+    else if (pv > dv)  endGame("win",  "You win with " + pv + "!");
+    else               endGame("tie",  "Push! It's a tie");
   }
 
   void endGame(String result, String message) {
-    gameActive = false;
-    dealerRevealed = true;
-    gameStatus = message;
-    statusType = result;
+    bjGameActive = false;
+    bjDealerRevealed = true;
+    bjStatus = message;
+    bjStatusType = result;
 
-    if (result.equals("win") || result.equals("blackjack")) {
-      wins++;
-    } else if (result.equals("lose")) {
-      losses++;
-    } else {
-      ties++;
+    if (result.equals("win") || result.equals("blackjack")) bjWins++;
+    else if (result.equals("lose")) bjLosses++;
+    else bjTies++;
+
+    bjDealBtn.bjEnabled  = true;
+    bjHitBtn.bjEnabled   = false;
+    bjStandBtn.bjEnabled = false;
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  Inner classes (prefixed BJ to avoid merge conflicts)
+  // ════════════════════════════════════════════════════════════
+
+  class BJCard {
+    String bjSuit, bjRank;
+    BJCard(String s, String r) { bjSuit = s; bjRank = r; }
+  }
+
+  class BJCardAnim {
+    float bjSX, bjSY, bjEX, bjEY, bjCX, bjCY;
+    float bjProg = 0;
+    boolean bjDone = false;
+
+    BJCardAnim(float sx, float sy, float ex, float ey) {
+      bjSX = sx; bjSY = sy; bjEX = ex; bjEY = ey; bjCX = sx; bjCY = sy;
     }
 
-    dealBtn.enabled = true;
-    hitBtn.enabled = false;
-    standBtn.enabled = false;
+    void tick() {
+      bjProg += 0.08;
+      if (bjProg >= 1) { bjProg = 1; bjDone = true; }
+      float t = 1 - pow(1 - bjProg, 3);
+      bjCX = lerp(bjSX, bjEX, t);
+      bjCY = lerp(bjSY, bjEY, t);
+    }
+  }
+
+  class BJButton {
+    float bjBX, bjBY, bjBW, bjBH;
+    String bjLabel;
+    color bjBg, bjTxt;
+    boolean bjEnabled = true;
+    PGraphics bjOnBuf, bjOffBuf;
+
+    BJButton(float x, float y, float w, float h, String label, color bg, color txt) {
+      bjBX = x; bjBY = y; bjBW = w; bjBH = h;
+      bjLabel = label; bjBg = bg; bjTxt = txt;
+      buildBuffers();
+    }
+
+    void buildBuffers() {
+      bjOnBuf  = createGraphics(int(bjBW + 10), int(bjBH + 10));
+      bjOffBuf = createGraphics(int(bjBW + 10), int(bjBH + 10));
+
+      // Enabled state
+      bjOnBuf.beginDraw();
+      bjOnBuf.clear();
+      bjOnBuf.noStroke(); bjOnBuf.fill(bjBg, 100);
+      bjOnBuf.rect(0, 4, bjBW, bjBH, 12);
+      bjOnBuf.fill(bjBg);
+      bjOnBuf.rect(0, 0, bjBW, bjBH, 12);
+      bjOnBuf.fill(255, 30);
+      bjOnBuf.rect(0, 0, bjBW, bjBH/2, 12, 12, 0, 0);
+      bjOnBuf.noFill(); bjOnBuf.stroke(255, 50); bjOnBuf.strokeWeight(1);
+      bjOnBuf.rect(0, 0, bjBW, bjBH, 12);
+      bjOnBuf.textAlign(CENTER, CENTER); bjOnBuf.textSize(20);
+      bjOnBuf.fill(bjTxt); bjOnBuf.text(bjLabel, bjBW/2, bjBH/2 - 2);
+      bjOnBuf.endDraw();
+
+      // Disabled state
+      bjOffBuf.beginDraw();
+      bjOffBuf.clear();
+      bjOffBuf.fill(30); bjOffBuf.stroke(50);
+      bjOffBuf.rect(0, 0, bjBW, bjBH, 12);
+      bjOffBuf.textAlign(CENTER, CENTER); bjOffBuf.textSize(16);
+      bjOffBuf.fill(100); bjOffBuf.text(bjLabel, bjBW/2, bjBH/2 - 2);
+      bjOffBuf.endDraw();
+    }
+
+    void render() {
+      pushStyle();
+      if (bjEnabled && bjOnBuf != null)       image(bjOnBuf, bjBX, bjBY);
+      else if (!bjEnabled && bjOffBuf != null) image(bjOffBuf, bjBX, bjBY);
+      popStyle();
+    }
+
+    boolean isHit(float mx, float my) {
+      return mx >= bjBX && mx <= bjBX + bjBW && my >= bjBY && my <= bjBY + bjBH;
+    }
   }
 }
