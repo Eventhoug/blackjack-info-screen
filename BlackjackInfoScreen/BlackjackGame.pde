@@ -1,4 +1,5 @@
 /*
+// Det her er sikkert vigtigt. Those who know!
  * BlackjackGame
  * Self-contained blackjack table for Processing.
  * All classes prefixed "BJ" to avoid merge conflicts.
