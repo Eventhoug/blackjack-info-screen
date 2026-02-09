@@ -1,49 +1,56 @@
 /*
  * BlackjackGame
- * A self-contained blackjack table that can be dropped into any Processing sketch.
- * All classes are prefixed "BJ" so nothing collides when merged with other code.
+ * Self-contained blackjack table for Processing.
+ * All classes prefixed "BJ" to avoid merge conflicts.
  *
- * Quick start:
  *   BlackjackGame game = new BlackjackGame(0, 0, width, height);
- *   // in draw()          -> game.display();
- *   // in mousePressed()  -> game.handleClick(mouseX, mouseY);
- *   // in keyPressed()    -> game.handleKey(key);
+ *   game.display();           // in draw()
+ *   game.handleClick(mx,my);  // in mousePressed()
+ *   game.handleKey(k);        // in keyPressed()
  */
 
 class BlackjackGame {
 
   // --- Layout ---
   float bjX, bjY, bjW, bjH;
-  float bjScale = 1.0;            // scales everything relative to 1920x1080
+  float bjScale = 1.0;
+
+  // --- Card dimensions (scaled) ---
+  float bjCardW, bjCardH, bjCardGap;
 
   // --- Hands & deck ---
   ArrayList<BJCard> bjPlayerHand, bjDealerHand, bjDeck;
-  boolean bjGameActive      = false;
-  boolean bjDealerRevealed  = false;
-  String  bjStatus          = "Place your bet — press DEAL";
-  String  bjStatusType      = "";
+  boolean bjGameActive     = false;
+  boolean bjDealerRevealed = false;
+  String  bjStatus         = "Place your bet \u2014 press DEAL";
+  String  bjStatusType     = "";
 
   // --- Score tracking ---
   int bjWins = 0, bjLosses = 0, bjTies = 0;
 
   // --- Palette ---
-  final color BJ_FELT  = #1b5e3b;   // dark casino felt
-  final color BJ_FELT2 = #17492f;   // darker felt for vignette
-  final color BJ_GOLD  = #c9a94e;   // muted gold trim
-  final color BJ_RED   = #b5312c;   // card-red (suits)
-  final color BJ_INK   = #1a1a1a;   // card-black (suits + text)
+  final color BJ_FELT  = #1b5e3b;
+  final color BJ_FELT2 = #17492f;
+  final color BJ_GOLD  = #c9a94e;
+  final color BJ_RED   = #b5312c;
+  final color BJ_INK   = #1a1a1a;
   final color BJ_WIN   = #2ecc71;
   final color BJ_LOSE  = #e74c3c;
-  final color BJ_AMBER = #e6b832;   // deal / blackjack highlight
+  final color BJ_AMBER = #e6b832;
+
+  // --- Layout anchors (Y positions, computed once) ---
+  float bjTitleY, bjDealerLabelY, bjDealerCardY;
+  float bjBannerY, bjStatusY;
+  float bjPlayerLabelY, bjPlayerCardY, bjButtonY;
 
   // --- Buttons ---
   BJButton bjDealBtn, bjHitBtn, bjStandBtn;
 
-  // --- Deal animations ---
-  ArrayList<BJCardAnim> bjAnims;
-
   // --- Pre-rendered table surface ---
   PGraphics bjTableBuf;
+
+  // --- Frame counter for staggered dealing ---
+  int bjFrameCount = 0;
 
 
   // ----------------------------------------------------------------
@@ -57,21 +64,35 @@ class BlackjackGame {
     bjH = h;
     bjScale = min(w / 1920.0, h / 1080.0);
 
+    // Card size
+    bjCardW   = 160 * bjScale;
+    bjCardH   = 224 * bjScale;
+    bjCardGap = 30  * bjScale;
+
+    // Vertical layout anchors
+    bjTitleY       = 20 * bjScale;
+    bjDealerLabelY = 132 * bjScale;
+    bjDealerCardY  = 168 * bjScale;
+    bjBannerY      = (bjDealerCardY + bjCardH + (h - 340 * bjScale) - 40 * bjScale) / 2;
+    bjPlayerLabelY = h - 364 * bjScale;
+    bjPlayerCardY  = h - 328 * bjScale;
+    bjStatusY      = bjBannerY + 50 * bjScale;
+    bjButtonY      = h - 100 * bjScale;
+
     bjPlayerHand = new ArrayList<BJCard>();
     bjDealerHand = new ArrayList<BJCard>();
     bjDeck       = new ArrayList<BJCard>();
-    bjAnims      = new ArrayList<BJCardAnim>();
 
-    float bw = 180 * bjScale;
-    float bh = 65  * bjScale;
-    float gap = 40 * bjScale;
+    // Buttons (bigger)
+    float bw  = 220 * bjScale;
+    float bh  = 75  * bjScale;
+    float gap = 44  * bjScale;
     float totalBtnW = bw * 3 + gap * 2;
     float bx = x + (w - totalBtnW) / 2;
-    float by = y + h - 120 * bjScale;
 
-    bjDealBtn  = new BJButton(bx,                 by, bw, bh, "DEAL",  BJ_AMBER, BJ_INK);
-    bjHitBtn   = new BJButton(bx + bw + gap,      by, bw, bh, "HIT",   BJ_WIN,   BJ_INK);
-    bjStandBtn = new BJButton(bx + (bw + gap) * 2, by, bw, bh, "STAND", BJ_LOSE,  #f0f0f0);
+    bjDealBtn  = new BJButton(bx,                  bjButtonY, bw, bh, "DEAL",  BJ_AMBER, BJ_INK);
+    bjHitBtn   = new BJButton(bx + bw + gap,       bjButtonY, bw, bh, "HIT",   BJ_WIN,   BJ_INK);
+    bjStandBtn = new BJButton(bx + (bw + gap) * 2, bjButtonY, bw, bh, "STAND", BJ_LOSE,  #f0f0f0);
     bjHitBtn.bjEnabled   = false;
     bjStandBtn.bjEnabled = false;
 
@@ -80,7 +101,7 @@ class BlackjackGame {
 
 
   // ----------------------------------------------------------------
-  //  Table surface  (drawn once into an off-screen buffer)
+  //  Table surface (drawn once into a buffer)
   // ----------------------------------------------------------------
 
   void buildTableBuffer() {
@@ -88,33 +109,28 @@ class BlackjackGame {
     bjTableBuf.beginDraw();
     bjTableBuf.background(BJ_FELT);
 
-    // Radial vignette — darker edges give depth
+    // Radial vignette
     bjTableBuf.noStroke();
     for (int i = 20; i >= 0; i--) {
       float t = i / 20.0;
       bjTableBuf.fill(lerpColor(BJ_FELT, BJ_FELT2, 1 - t), 30);
-      float ew = bjW * (0.6 + 0.4 * t);
-      float eh = bjH * (0.6 + 0.4 * t);
-      bjTableBuf.ellipse(bjW / 2, bjH / 2, ew, eh);
+      bjTableBuf.ellipse(bjW / 2, bjH / 2, bjW * (0.6 + 0.4 * t), bjH * (0.6 + 0.4 * t));
     }
 
-    // Dealer arc — the curved line players sit around
+    // Dealer arc
     bjTableBuf.noFill();
     bjTableBuf.stroke(BJ_GOLD, 50);
     bjTableBuf.strokeWeight(3 * bjScale);
     bjTableBuf.arc(bjW / 2, 120 * bjScale, bjW * 0.7, bjH * 0.55, 0, PI);
 
-    // Outer rail (thick dark + gold inset)
+    // Outer rail
     bjTableBuf.noFill();
     bjTableBuf.strokeWeight(14 * bjScale);
     bjTableBuf.stroke(#2a1a04);
     bjTableBuf.rect(4, 4, bjW - 8, bjH - 8, 18 * bjScale);
-
     bjTableBuf.strokeWeight(4 * bjScale);
     bjTableBuf.stroke(BJ_GOLD, 160);
     bjTableBuf.rect(10, 10, bjW - 20, bjH - 20, 14 * bjScale);
-
-    // Thin inner highlight
     bjTableBuf.strokeWeight(1);
     bjTableBuf.stroke(255, 25);
     bjTableBuf.rect(14, 14, bjW - 28, bjH - 28, 12 * bjScale);
@@ -124,10 +140,11 @@ class BlackjackGame {
 
 
   // ----------------------------------------------------------------
-  //  Main draw loop — call this every frame
+  //  Main draw loop
   // ----------------------------------------------------------------
 
   void display() {
+    bjFrameCount++;
     pushMatrix();
     translate(bjX, bjY);
 
@@ -142,7 +159,6 @@ class BlackjackGame {
     bjHitBtn.render();
     bjStandBtn.render();
 
-    tickAnimations();
     popMatrix();
   }
 
@@ -152,116 +168,182 @@ class BlackjackGame {
   // ----------------------------------------------------------------
 
   void drawTitle() {
-    // Title pill
-    float tw = 460 * bjScale;
-    float th = 70 * bjScale;
+    float tw = 500 * bjScale;
+    float th = 80 * bjScale;
     float tx = bjW / 2 - tw / 2;
-    float ty = 28 * bjScale;
 
     noStroke();
     fill(0, 90);
-    rect(tx, ty, tw, th, th / 2);
+    rect(tx, bjTitleY, tw, th, th / 2);
 
     textAlign(CENTER, CENTER);
-    textSize(48 * bjScale);
+    textSize(52 * bjScale);
     fill(BJ_GOLD);
-    text("BLACKJACK", bjW / 2, ty + th / 2);
+    text("BLACKJACK", bjW / 2, bjTitleY + th / 2);
 
     // Scoreboard
-    float sx = bjW - 460 * bjScale;
-    float sy = 28  * bjScale;
-    float sw = 420 * bjScale;
-    float sh = 72  * bjScale;
+    float sx = bjW - 480 * bjScale;
+    float sw = 440 * bjScale;
+    float sh = 78  * bjScale;
 
     fill(0, 70);
-    rect(sx, sy, sw, sh, 12 * bjScale);
+    rect(sx, bjTitleY, sw, sh, 12 * bjScale);
 
-    drawScoreColumn("W", bjWins,   sx + 70  * bjScale, sy + sh / 2);
-    drawScoreColumn("L", bjLosses, sx + 210 * bjScale, sy + sh / 2);
-    drawScoreColumn("T", bjTies,   sx + 350 * bjScale, sy + sh / 2);
+    drawScoreColumn("W", bjWins,   sx + 73  * bjScale, bjTitleY + sh / 2);
+    drawScoreColumn("L", bjLosses, sx + 220 * bjScale, bjTitleY + sh / 2);
+    drawScoreColumn("T", bjTies,   sx + 367 * bjScale, bjTitleY + sh / 2);
   }
 
   void drawScoreColumn(String label, int value, float cx, float cy) {
     textAlign(CENTER, CENTER);
-    textSize(14 * bjScale);
+    textSize(15 * bjScale);
     fill(180);
-    text(label, cx, cy - 14 * bjScale);
-    textSize(30 * bjScale);
+    text(label, cx, cy - 15 * bjScale);
+    textSize(32 * bjScale);
     fill(255);
-    text(value, cx, cy + 10 * bjScale);
+    text(value, cx, cy + 12 * bjScale);
   }
 
 
   // ----------------------------------------------------------------
-  //  Rules banner  (center of table between the two hands)
+  //  Rules banner
   // ----------------------------------------------------------------
 
   void drawRulesBanner() {
-    float bw = 520 * bjScale;
-    float bh = 36  * bjScale;
+    float bw = 540 * bjScale;
+    float bh = 38  * bjScale;
     float bx = bjW / 2 - bw / 2;
-    float by = bjH / 2 - bh / 2 - 30 * bjScale;
 
     noStroke();
     fill(0, 60);
-    rect(bx, by, bw, bh, bh / 2);
+    rect(bx, bjBannerY, bw, bh, bh / 2);
 
     fill(BJ_GOLD, 180);
     textAlign(CENTER, CENTER);
-    textSize(16 * bjScale);
-    text("DEALER MUST STAND ON 17", bjW / 2, by + bh / 2);
+    textSize(17 * bjScale);
+    text("DEALER MUST STAND ON 17", bjW / 2, bjBannerY + bh / 2);
   }
 
 
   // ----------------------------------------------------------------
-  //  Draw both hands (dealer on top, player on bottom)
+  //  Draw both hands with per-card animation
   // ----------------------------------------------------------------
 
   void drawBothHands() {
-    float cardW   = 130 * bjScale;
-    float cardH   = 182 * bjScale;
-    float cardGap = 25  * bjScale;
+    // Compute target positions for every card, then animate each one
 
-    // --- Dealer hand ---
-    float dealerY = 200 * bjScale;
-    drawHandLabel("DEALER", dealerY - 40 * bjScale);
-
+    // --- Dealer ---
+    drawHandLabel("DEALER", bjDealerLabelY);
     int dealerVal = bjDealerRevealed ? handValue(bjDealerHand) : visibleDealerVal();
-    drawValueBadge(str(dealerVal), bjW / 2 + 320 * bjScale, dealerY - 40 * bjScale);
+    drawValueBadge(str(dealerVal), bjW / 2 + 360 * bjScale, bjDealerLabelY);
+    updateAndDrawHand(bjDealerHand, bjDealerCardY, true);
 
-    float startX = (bjW - bjDealerHand.size() * (cardW + cardGap)) / 2;
-    for (int i = 0; i < bjDealerHand.size(); i++) {
-      boolean faceDown = (i == 1 && !bjDealerRevealed);
-      drawCard(startX + i * (cardW + cardGap), dealerY, cardW, cardH,
-               bjDealerHand.get(i), faceDown);
+    // --- Player ---
+    drawHandLabel("PLAYER", bjPlayerLabelY);
+    drawValueBadge(str(handValue(bjPlayerHand)), bjW / 2 + 360 * bjScale, bjPlayerLabelY);
+    updateAndDrawHand(bjPlayerHand, bjPlayerCardY, false);
+  }
+
+  // Compute where each card should sit, animate it there, draw it
+  void updateAndDrawHand(ArrayList<BJCard> hand, float rowY, boolean isDealer) {
+    int n = hand.size();
+    if (n == 0) return;
+
+    float totalW = n * bjCardW + (n - 1) * bjCardGap;
+    float startX = (bjW - totalW) / 2;
+
+    for (int i = 0; i < n; i++) {
+      BJCard c = hand.get(i);
+
+      // Set target slot position
+      c.bjTgtX = startX + i * (bjCardW + bjCardGap);
+      c.bjTgtY = rowY;
+
+      // Animate position (only if card hasn't reached target yet)
+      if (!c.bjSlideFinished) {
+        // Wait for staggered deal delay
+        if (bjFrameCount < c.bjDealFrame) continue;
+
+        c.bjSlideProg += 0.07;
+        if (c.bjSlideProg >= 1.0) {
+          c.bjSlideProg = 1.0;
+          c.bjSlideFinished = true;
+          // Auto-flip face up after landing (unless it's the dealer's hole card)
+          if (!c.bjFaceUp && c.bjAutoFlip) {
+            c.bjFlipping = true;
+          }
+        }
+        float ease = 1 - pow(1 - c.bjSlideProg, 3);
+        c.bjCurX = lerp(c.bjStartX, c.bjTgtX, ease);
+        c.bjCurY = lerp(c.bjStartY, c.bjTgtY, ease);
+      } else {
+        // Already landed — smoothly track if row recenters (new card added)
+        c.bjCurX = lerp(c.bjCurX, c.bjTgtX, 0.18);
+        c.bjCurY = lerp(c.bjCurY, c.bjTgtY, 0.18);
+      }
+
+      // Animate flip
+      if (c.bjFlipping) {
+        c.bjFlipProg += 0.08;
+        if (c.bjFlipProg >= 1.0) {
+          c.bjFlipProg = 1.0;
+          c.bjFlipping = false;
+          c.bjFaceUp = true;
+        }
+      }
+
+      // Determine visual state: during flip, scale X to simulate rotation
+      boolean showFace;
+      float scaleX;
+      if (c.bjFlipping) {
+        // First half: shrink showing back; second half: grow showing face
+        if (c.bjFlipProg < 0.5) {
+          scaleX = 1 - c.bjFlipProg * 2;   // 1 → 0
+          showFace = false;
+        } else {
+          scaleX = (c.bjFlipProg - 0.5) * 2; // 0 → 1
+          showFace = true;
+        }
+      } else {
+        scaleX = 1.0;
+        showFace = c.bjFaceUp;
+      }
+
+      // Draw the card
+      drawAnimatedCard(c.bjCurX, c.bjCurY, bjCardW, bjCardH, c, showFace, scaleX);
     }
+  }
 
-    // --- Player hand ---
-    float playerY = bjH - 340 * bjScale;
-    drawHandLabel("PLAYER", playerY - 40 * bjScale);
-    drawValueBadge(str(handValue(bjPlayerHand)),
-                   bjW / 2 + 320 * bjScale, playerY - 40 * bjScale);
+  // Draw a card with optional X-scale (for flip animation)
+  void drawAnimatedCard(float cx, float cy, float cw, float ch,
+                        BJCard card, boolean showFace, float scaleX) {
+    float drawnW = cw * scaleX;
+    float offsetX = (cw - drawnW) / 2;     // keep card centered during flip
 
-    startX = (bjW - bjPlayerHand.size() * (cardW + cardGap)) / 2;
-    for (int i = 0; i < bjPlayerHand.size(); i++) {
-      drawCard(startX + i * (cardW + cardGap), playerY, cardW, cardH,
-               bjPlayerHand.get(i), false);
+    // Drop shadow
+    noStroke();
+    fill(0, 40);
+    rect(cx + offsetX + 5 * bjScale, cy + 5 * bjScale, drawnW, ch, 10 * bjScale);
+
+    if (showFace) {
+      drawCardFace(cx + offsetX, cy, drawnW, ch, card);
+    } else {
+      drawCardBack(cx + offsetX, cy, drawnW, ch);
     }
   }
 
   void drawHandLabel(String label, float y) {
     textAlign(LEFT, CENTER);
-    textSize(20 * bjScale);
+    textSize(22 * bjScale);
     fill(BJ_GOLD, 160);
-    text(label, bjW / 2 - 380 * bjScale, y);
+    text(label, bjW / 2 - 400 * bjScale, y);
   }
 
-  // Small gold circle showing the hand total
   void drawValueBadge(String val, float cx, float cy) {
-    float d = 46 * bjScale;
+    float d = 52 * bjScale;
     noStroke();
     fill(0, 120);
-    ellipse(cx, cy, d + 4, d + 4);       // shadow ring
+    ellipse(cx, cy, d + 4, d + 4);
 
     stroke(BJ_GOLD, 180);
     strokeWeight(2 * bjScale);
@@ -270,74 +352,55 @@ class BlackjackGame {
 
     noStroke();
     fill(BJ_GOLD);
-    textSize(22 * bjScale);
+    textSize(24 * bjScale);
     textAlign(CENTER, CENTER);
     text(val, cx, cy - 1);
   }
 
 
   // ----------------------------------------------------------------
-  //  Single card
+  //  Card back — navy with diamond lattice
   // ----------------------------------------------------------------
 
-  void drawCard(float cx, float cy, float cw, float ch,
-                BJCard card, boolean faceDown) {
-
-    // Soft drop-shadow
-    noStroke();
-    fill(0, 40);
-    rect(cx + 5 * bjScale, cy + 5 * bjScale, cw, ch, 10 * bjScale);
-
-    if (faceDown) {
-      drawCardBack(cx, cy, cw, ch);
-    } else {
-      drawCardFace(cx, cy, cw, ch, card);
-    }
-  }
-
-  // Card back — navy with diamond cross-hatch pattern
   void drawCardBack(float cx, float cy, float cw, float ch) {
     float r = 10 * bjScale;
 
-    // Base
     stroke(#334455);
     strokeWeight(2 * bjScale);
     fill(#1c2a3a);
     rect(cx, cy, cw, ch, r);
 
-    // Inner border
+    // Inner gold border
     noFill();
     stroke(BJ_GOLD, 60);
     strokeWeight(1);
     rect(cx + 6, cy + 6, cw - 12, ch - 12, r - 2);
 
-    // Diamond lattice pattern
+    // Diamond lattice
     stroke(#28394d);
     strokeWeight(1);
     float step = 14 * bjScale;
-    // We clip manually by only drawing lines inside the card area
     for (float d = -ch; d < cw + ch; d += step) {
-      float x1 = cx + d;
-      float y1 = cy;
-      float x2 = cx + d + ch;
-      float y2 = cy + ch;
-      // Diagonal going down-right
+      float x1 = cx + d, y1 = cy;
+      float x2 = cx + d + ch, y2 = cy + ch;
       line(max(cx + 4, x1), max(cy + 4, map(max(cx + 4, x1), x1, x2, y1, y2)),
            min(cx + cw - 4, x2), min(cy + ch - 4, map(min(cx + cw - 4, x2), x1, x2, y1, y2)));
-      // Diagonal going up-right
-      float ya = cy + ch;
-      float yb = cy;
+      float ya = cy + ch, yb = cy;
       line(max(cx + 4, x1), min(cy + ch - 4, map(max(cx + 4, x1), x1, x2, ya, yb)),
            min(cx + cw - 4, x2), max(cy + 4, map(min(cx + cw - 4, x2), x1, x2, ya, yb)));
     }
 
-    // Center oval highlight
+    // Center highlight
     noStroke();
     fill(#1c2a3a, 200);
     ellipse(cx + cw / 2, cy + ch / 2, cw * 0.5, ch * 0.35);
   }
 
-  // Card face — white with rank + pips
+
+  // ----------------------------------------------------------------
+  //  Card face — white with rank + pips
+  // ----------------------------------------------------------------
+
   void drawCardFace(float cx, float cy, float cw, float ch, BJCard card) {
     float r = 10 * bjScale;
 
@@ -355,7 +418,7 @@ class BlackjackGame {
     textSize(cw * 0.22);
     text(card.bjRank, cx + cw * 0.20, cy + ch * 0.06);
 
-    // Suit pips in the middle
+    // Pips
     drawPipLayout(cx, cy, cw, ch, card);
 
     // Bottom-right rank (upside-down)
@@ -371,97 +434,76 @@ class BlackjackGame {
 
 
   // ----------------------------------------------------------------
-  //  Pip layouts — mirrors a real deck (2-10, A, face cards)
+  //  Pip layouts (2-10, A, face cards)
   // ----------------------------------------------------------------
 
   void drawPipLayout(float cx, float cy, float cw, float ch, BJCard card) {
     String rank = card.bjRank;
     String suit = card.bjSuit;
 
-    // Ace — one big centered suit
     if (rank.equals("A")) {
       float s = cw * 0.42;
       drawSuitShape(cx + cw / 2 - s / 2, cy + ch / 2 - s / 2, s, s, suit);
       return;
     }
-
-    // Face cards — one medium centered suit
     if (rank.equals("J") || rank.equals("Q") || rank.equals("K")) {
       float s = cw * 0.38;
       drawSuitShape(cx + cw / 2 - s / 2, cy + ch / 2 - s / 2, s, s, suit);
       return;
     }
 
-    // Number cards (2-10) — standard pip grid
     int count = int(rank);
-    float ps = cw * 0.13;                             // pip size
+    float ps = cw * 0.13;
 
-    float colL = cx + cw * 0.33;                      // left column
-    float colC = cx + cw * 0.50;                      // center column
-    float colR = cx + cw * 0.67;                      // right column
+    float colL = cx + cw * 0.33;
+    float colC = cx + cw * 0.50;
+    float colR = cx + cw * 0.67;
 
-    float row0 = cy + ch * 0.28;                      // row positions top to bottom
-    float row1 = cy + ch * 0.37;
-    float row2 = cy + ch * 0.41;
-    float row3 = cy + ch * 0.50;
-    float row4 = cy + ch * 0.59;
-    float row5 = cy + ch * 0.63;
-    float row6 = cy + ch * 0.72;
+    float r0 = cy + ch * 0.28, r1 = cy + ch * 0.37, r2 = cy + ch * 0.41;
+    float r3 = cy + ch * 0.50, r4 = cy + ch * 0.59;
+    float r5 = cy + ch * 0.63, r6 = cy + ch * 0.72;
 
     switch (count) {
       case 2:
-        pip(colC, row0, ps, suit, false);
-        pip(colC, row6, ps, suit, true);
-        break;
+        pip(colC,r0,ps,suit,false); pip(colC,r6,ps,suit,true); break;
       case 3:
-        pip(colC, row0, ps, suit, false);
-        pip(colC, row3, ps, suit, false);
-        pip(colC, row6, ps, suit, true);
-        break;
+        pip(colC,r0,ps,suit,false); pip(colC,r3,ps,suit,false); pip(colC,r6,ps,suit,true); break;
       case 4:
-        pip(colL, row0, ps, suit, false);  pip(colR, row0, ps, suit, false);
-        pip(colL, row6, ps, suit, true);   pip(colR, row6, ps, suit, true);
-        break;
+        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
+        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
       case 5:
-        pip(colL, row0, ps, suit, false);  pip(colR, row0, ps, suit, false);
-        pip(colC, row3, ps, suit, false);
-        pip(colL, row6, ps, suit, true);   pip(colR, row6, ps, suit, true);
-        break;
+        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
+        pip(colC,r3,ps,suit,false);
+        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
       case 6:
-        pip(colL, row0, ps, suit, false);  pip(colR, row0, ps, suit, false);
-        pip(colL, row3, ps, suit, false);  pip(colR, row3, ps, suit, false);
-        pip(colL, row6, ps, suit, true);   pip(colR, row6, ps, suit, true);
-        break;
+        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
+        pip(colL,r3,ps,suit,false); pip(colR,r3,ps,suit,false);
+        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
       case 7:
-        pip(colL, row0, ps, suit, false);  pip(colR, row0, ps, suit, false);
-        pip(colL, row3, ps, suit, false);  pip(colR, row3, ps, suit, false);
-        pip(colC, row2, ps, suit, false);
-        pip(colL, row6, ps, suit, true);   pip(colR, row6, ps, suit, true);
-        break;
+        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
+        pip(colL,r3,ps,suit,false); pip(colR,r3,ps,suit,false);
+        pip(colC,r2,ps,suit,false);
+        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
       case 8:
-        pip(colL, row0, ps, suit, false);  pip(colR, row0, ps, suit, false);
-        pip(colL, row3, ps, suit, false);  pip(colR, row3, ps, suit, false);
-        pip(colC, row2, ps, suit, false);  pip(colC, row4, ps, suit, true);
-        pip(colL, row6, ps, suit, true);   pip(colR, row6, ps, suit, true);
-        break;
+        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
+        pip(colL,r3,ps,suit,false); pip(colR,r3,ps,suit,false);
+        pip(colC,r2,ps,suit,false); pip(colC,r4,ps,suit,true);
+        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
       case 9:
-        pip(colL, row0, ps, suit, false);  pip(colR, row0, ps, suit, false);
-        pip(colL, row1, ps, suit, false);  pip(colR, row1, ps, suit, false);
-        pip(colC, row3, ps, suit, false);
-        pip(colL, row5, ps, suit, true);   pip(colR, row5, ps, suit, true);
-        pip(colL, row6, ps, suit, true);   pip(colR, row6, ps, suit, true);
-        break;
+        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
+        pip(colL,r1,ps,suit,false); pip(colR,r1,ps,suit,false);
+        pip(colC,r3,ps,suit,false);
+        pip(colL,r5,ps,suit,true);  pip(colR,r5,ps,suit,true);
+        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
       case 10:
-        pip(colL, row0, ps, suit, false);  pip(colR, row0, ps, suit, false);
-        pip(colL, row1, ps, suit, false);  pip(colR, row1, ps, suit, false);
-        pip(colC, row2, ps, suit, false);  pip(colC, row4, ps, suit, true);
-        pip(colL, row5, ps, suit, true);   pip(colR, row5, ps, suit, true);
-        pip(colL, row6, ps, suit, true);   pip(colR, row6, ps, suit, true);
-        break;
+        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
+        pip(colL,r1,ps,suit,false); pip(colR,r1,ps,suit,false);
+        pip(colC,r2,ps,suit,false); pip(colC,r4,ps,suit,true);
+        pip(colL,r5,ps,suit,true);  pip(colR,r5,ps,suit,true);
+        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
     }
   }
 
-  // Place a single pip; if flipped it rotates 180 degrees (bottom half of card)
   void pip(float px, float py, float size, String suit, boolean flipped) {
     if (flipped) {
       pushMatrix();
@@ -476,8 +518,7 @@ class BlackjackGame {
 
 
   // ----------------------------------------------------------------
-  //  Vector suit shapes (spade, heart, diamond, club)
-  //  All drawn in a normalized -1..1 coordinate space then scaled.
+  //  Vector suit shapes (-1..1 normalized, then scaled)
   // ----------------------------------------------------------------
 
   void drawSuitShape(float sx, float sy, float sw, float sh, String suit) {
@@ -491,7 +532,6 @@ class BlackjackGame {
     fill(isRed ? color(185, 30, 30) : color(30));
 
     if (suit.equals("\u2660")) {
-      // Spade body
       beginShape();
       vertex(0, -1);
       bezierVertex(0.5, -0.5, 0.9, 0, 0.9, 0.4);
@@ -499,24 +539,19 @@ class BlackjackGame {
       bezierVertex(0, 0.3, -0.9, 0.8, -0.9, 0.4);
       bezierVertex(-0.9, 0, -0.5, -0.5, 0, -1);
       endShape();
-      // Spade stem
       beginShape();
       vertex(0, 0.3);
       bezierVertex(0.1, 0.6, 0.3, 0.9, 0.5, 1);
       vertex(-0.5, 1);
       bezierVertex(-0.3, 0.9, -0.1, 0.6, 0, 0.3);
       endShape();
-
     } else if (suit.equals("\u2665")) {
-      // Heart
       beginShape();
       vertex(0, 0.6);
       bezierVertex(0.8, -0.2, 0.9, -1.0, 0, -0.5);
       bezierVertex(-0.9, -1.0, -0.8, -0.2, 0, 0.6);
       endShape();
-
     } else if (suit.equals("\u2663")) {
-      // Club — three circles + stem
       float cr = 0.55;
       ellipse(0, -0.5, cr, cr);
       ellipse(-0.45, 0.15, cr, cr);
@@ -527,9 +562,7 @@ class BlackjackGame {
       vertex(-0.5, 1);
       bezierVertex(-0.3, 0.9, -0.1, 0.6, 0, 0);
       endShape();
-
     } else if (suit.equals("\u2666")) {
-      // Diamond
       beginShape();
       vertex(0, -1);
       vertex(0.8, 0);
@@ -544,25 +577,22 @@ class BlackjackGame {
 
 
   // ----------------------------------------------------------------
-  //  Status bar  (shows game messages like "Bust!" or "You win!")
+  //  Status bar
   // ----------------------------------------------------------------
 
   void drawStatusBar() {
     if (bjStatus.length() == 0) return;
 
-    float cy = bjH / 2 + 90 * bjScale;
-    textSize(28 * bjScale);
-    float pillW = textWidth(bjStatus) + 80 * bjScale;
-    float pillH = 60 * bjScale;
+    textSize(30 * bjScale);
+    float pillW = textWidth(bjStatus) + 90 * bjScale;
+    float pillH = 66 * bjScale;
     float pillX = (bjW - pillW) / 2;
-    float pillY = cy - pillH / 2;
+    float pillY = bjStatusY - pillH / 2;
 
-    // Dark pill background
     noStroke();
     fill(15, 15, 15, 210);
     rect(pillX, pillY, pillW, pillH, pillH / 2);
 
-    // Colour-coded border
     color borderClr = color(255, 80);
     if      (bjStatusType.equals("win"))       borderClr = BJ_WIN;
     else if (bjStatusType.equals("lose"))      borderClr = BJ_LOSE;
@@ -573,28 +603,15 @@ class BlackjackGame {
     strokeWeight(3 * bjScale);
     rect(pillX, pillY, pillW, pillH, pillH / 2);
 
-    // Text
     fill(bjStatusType.equals("blackjack") ? BJ_AMBER : 255);
     noStroke();
     textAlign(CENTER, CENTER);
-    text(bjStatus, bjW / 2, cy - 1);
+    text(bjStatus, bjW / 2, bjStatusY - 1);
   }
 
 
   // ----------------------------------------------------------------
-  //  Animation tick (card-deal slide)
-  // ----------------------------------------------------------------
-
-  void tickAnimations() {
-    for (int i = bjAnims.size() - 1; i >= 0; i--) {
-      bjAnims.get(i).tick();
-      if (bjAnims.get(i).bjDone) bjAnims.remove(i);
-    }
-  }
-
-
-  // ----------------------------------------------------------------
-  //  Input handling
+  //  Input
   // ----------------------------------------------------------------
 
   void handleClick(float mx, float my) {
@@ -613,10 +630,9 @@ class BlackjackGame {
 
 
   // ----------------------------------------------------------------
-  //  Deck helpers
+  //  Deck
   // ----------------------------------------------------------------
 
-  // Build a fresh 52-card deck and shuffle it (Fisher-Yates)
   void buildDeck() {
     bjDeck.clear();
     String[] suits = { "\u2660", "\u2665", "\u2666", "\u2663" };
@@ -625,6 +641,7 @@ class BlackjackGame {
       for (String r : ranks)
         bjDeck.add(new BJCard(s, r));
 
+    // Fisher-Yates shuffle
     for (int i = bjDeck.size() - 1; i > 0; i--) {
       int j = int(random(i + 1));
       BJCard tmp = bjDeck.get(i);
@@ -633,10 +650,21 @@ class BlackjackGame {
     }
   }
 
-  // Take the top card; reshuffle automatically if the deck runs out
   BJCard pullCard() {
     if (bjDeck.size() == 0) buildDeck();
     return bjDeck.remove(bjDeck.size() - 1);
+  }
+
+  // Create a card that will animate from the deck center to its slot
+  BJCard dealCard(boolean autoFlip, int staggerIndex) {
+    BJCard c = pullCard();
+    c.bjStartX = bjW / 2 - bjCardW / 2;
+    c.bjStartY = bjH / 2 - bjCardH / 2;
+    c.bjCurX   = c.bjStartX;
+    c.bjCurY   = c.bjStartY;
+    c.bjAutoFlip = autoFlip;
+    c.bjDealFrame = bjFrameCount + staggerIndex * 10;  // 10-frame stagger
+    return c;
   }
 
 
@@ -644,7 +672,6 @@ class BlackjackGame {
   //  Hand evaluation
   // ----------------------------------------------------------------
 
-  // Standard blackjack value: face cards = 10, aces = 11 or 1
   int handValue(ArrayList<BJCard> hand) {
     int total = 0, aces = 0;
     for (BJCard c : hand) {
@@ -656,7 +683,6 @@ class BlackjackGame {
     return total;
   }
 
-  // Value of the dealer's face-up card only (second card hidden)
   int visibleDealerVal() {
     if (bjDealerHand.size() == 0) return 0;
     BJCard first = bjDealerHand.get(0);
@@ -678,35 +704,18 @@ class BlackjackGame {
     buildDeck();
     bjPlayerHand.clear();
     bjDealerHand.clear();
-    bjAnims.clear();
     bjGameActive     = true;
     bjDealerRevealed = false;
 
-    // Starting positions for the deal animation
-    float deckX = bjW / 2 - 65 * bjScale;
-    float deckY = bjH / 2 - 90 * bjScale;
-    float cw = 130 * bjScale;
-    float cs = 25  * bjScale;
-    float dealerY = 200 * bjScale;
-    float playerY = bjH - 340 * bjScale;
-    float leftX = (bjW - 2 * (cw + cs)) / 2;
+    // Deal 4 cards with staggered animation
+    bjPlayerHand.add(dealCard(true, 0));    // player card 1 — flips face up
+    bjDealerHand.add(dealCard(true, 1));    // dealer card 1 — flips face up
+    bjPlayerHand.add(dealCard(true, 2));    // player card 2 — flips face up
+    bjDealerHand.add(dealCard(false, 3));   // dealer hole card — stays face down
 
-    // Deal alternating: player, dealer, player, dealer
-    bjPlayerHand.add(pullCard());
-    bjAnims.add(new BJCardAnim(deckX, deckY, leftX, playerY));
-
-    bjDealerHand.add(pullCard());
-    bjAnims.add(new BJCardAnim(deckX, deckY, leftX, dealerY));
-
-    bjPlayerHand.add(pullCard());
-    bjAnims.add(new BJCardAnim(deckX, deckY, leftX + cw + cs, playerY));
-
-    bjDealerHand.add(pullCard());
-    bjAnims.add(new BJCardAnim(deckX, deckY, leftX + cw + cs, dealerY));
-
-    // Check for natural blackjacks right away
+    // Check for natural blackjacks
     if (isBlackjack(bjPlayerHand)) {
-      if (isBlackjack(bjDealerHand)) endGame("tie",       "Both have Blackjack — Push");
+      if (isBlackjack(bjDealerHand)) endGame("tie",       "Both have Blackjack \u2014 Push");
       else                           endGame("blackjack", "BLACKJACK!");
       return;
     }
@@ -724,10 +733,12 @@ class BlackjackGame {
 
   void playerHit() {
     if (!bjGameActive) return;
-    bjPlayerHand.add(pullCard());
+    // New card slides in and flips immediately (no stagger)
+    BJCard c = dealCard(true, 0);
+    bjPlayerHand.add(c);
     int val = handValue(bjPlayerHand);
     if      (val > 21) endGame("lose", "Bust! Over 21");
-    else if (val == 21) playerStand();   // auto-stand on 21
+    else if (val == 21) playerStand();
   }
 
   void playerStand() {
@@ -735,23 +746,31 @@ class BlackjackGame {
     bjHitBtn.bjEnabled   = false;
     bjStandBtn.bjEnabled = false;
     bjDealerRevealed     = true;
+
+    // Flip the dealer's hole card
+    BJCard holeCard = bjDealerHand.get(1);
+    holeCard.bjFlipping = true;
+    holeCard.bjFlipProg = 0;
+
     bjStatus = "Dealer draws\u2026";
     dealerPlay();
   }
 
-  // Dealer draws until 17 or higher, then we compare
   void dealerPlay() {
     int dv = handValue(bjDealerHand);
     int pv = handValue(bjPlayerHand);
+    int extra = 0;
     while (dv < 17) {
-      bjDealerHand.add(pullCard());
+      extra++;
+      BJCard c = dealCard(true, extra);
+      bjDealerHand.add(c);
       dv = handValue(bjDealerHand);
     }
 
-    if      (dv > 21) endGame("win",  "Dealer busts — you win!");
+    if      (dv > 21) endGame("win",  "Dealer busts \u2014 you win!");
     else if (dv > pv) endGame("lose", "Dealer wins with " + dv);
     else if (pv > dv) endGame("win",  "You win with " + pv + "!");
-    else              endGame("tie",  "Push — it's a tie");
+    else              endGame("tie",  "Push \u2014 it's a tie");
   }
 
   void endGame(String result, String message) {
@@ -759,6 +778,15 @@ class BlackjackGame {
     bjDealerRevealed = true;
     bjStatus         = message;
     bjStatusType     = result;
+
+    // Reveal dealer's hole card if not already flipping
+    if (bjDealerHand.size() >= 2) {
+      BJCard hole = bjDealerHand.get(1);
+      if (!hole.bjFaceUp && !hole.bjFlipping) {
+        hole.bjFlipping = true;
+        hole.bjFlipProg = 0;
+      }
+    }
 
     if (result.equals("win") || result.equals("blackjack")) bjWins++;
     else if (result.equals("lose")) bjLosses++;
@@ -774,36 +802,29 @@ class BlackjackGame {
   //  Inner classes
   // ================================================================
 
-  /* A single playing card (suit + rank). */
   class BJCard {
     String bjSuit, bjRank;
-    BJCard(String s, String r) { bjSuit = s; bjRank = r; }
-  }
 
-  /* Slide animation for a dealt card (ease-out cubic). */
-  class BJCardAnim {
-    float bjSX, bjSY;   // start
-    float bjEX, bjEY;   // end
-    float bjCX, bjCY;   // current
-    float bjProg = 0;
-    boolean bjDone = false;
+    // Slide animation
+    float bjStartX, bjStartY;     // where the card slides from
+    float bjTgtX, bjTgtY;         // target slot (computed each frame)
+    float bjCurX, bjCurY;         // current drawn position
+    float bjSlideProg = 0;        // 0→1 slide progress
+    boolean bjSlideFinished = false;
+    int bjDealFrame = 0;          // frame number when slide begins (stagger)
 
-    BJCardAnim(float sx, float sy, float ex, float ey) {
-      bjSX = sx; bjSY = sy;
-      bjEX = ex; bjEY = ey;
-      bjCX = sx; bjCY = sy;
-    }
+    // Flip animation
+    float bjFlipProg = 0;         // 0→1 flip progress
+    boolean bjFlipping = false;   // currently mid-flip?
+    boolean bjFaceUp = false;     // final resting state
+    boolean bjAutoFlip = true;    // flip after landing?
 
-    void tick() {
-      bjProg += 0.08;
-      if (bjProg >= 1) { bjProg = 1; bjDone = true; }
-      float ease = 1 - pow(1 - bjProg, 3);   // cubic ease-out
-      bjCX = lerp(bjSX, bjEX, ease);
-      bjCY = lerp(bjSY, bjEY, ease);
+    BJCard(String s, String r) {
+      bjSuit = s;
+      bjRank = r;
     }
   }
 
-  /* A pre-rendered button with enabled / disabled states. */
   class BJButton {
     float bjBX, bjBY, bjBW, bjBH;
     String  bjLabel;
@@ -818,42 +839,41 @@ class BlackjackGame {
       prebakeBuffers();
     }
 
-    // Draw button graphics once into PGraphics so we just blit each frame
     void prebakeBuffers() {
       bjOnBuf  = createGraphics(int(bjBW + 10), int(bjBH + 10));
       bjOffBuf = createGraphics(int(bjBW + 10), int(bjBH + 10));
 
-      // --- Active look ---
+      // Active
       bjOnBuf.beginDraw();
       bjOnBuf.clear();
       bjOnBuf.noStroke();
       bjOnBuf.fill(bjBg, 90);
-      bjOnBuf.rect(0, 4, bjBW, bjBH, 12);           // shadow
+      bjOnBuf.rect(0, 4, bjBW, bjBH, 14);
       bjOnBuf.fill(bjBg);
-      bjOnBuf.rect(0, 0, bjBW, bjBH, 12);           // body
+      bjOnBuf.rect(0, 0, bjBW, bjBH, 14);
       bjOnBuf.fill(255, 30);
-      bjOnBuf.rect(0, 0, bjBW, bjBH / 2, 12, 12, 0, 0);  // top highlight
+      bjOnBuf.rect(0, 0, bjBW, bjBH / 2, 14, 14, 0, 0);
       bjOnBuf.noFill();
       bjOnBuf.stroke(255, 40);
       bjOnBuf.strokeWeight(1);
-      bjOnBuf.rect(0, 0, bjBW, bjBH, 12);           // border
+      bjOnBuf.rect(0, 0, bjBW, bjBH, 14);
       bjOnBuf.textAlign(CENTER, CENTER);
-      bjOnBuf.textSize(20);
+      bjOnBuf.textSize(22);
       bjOnBuf.fill(bjTxt);
       bjOnBuf.text(bjLabel, bjBW / 2, bjBH / 2 - 2);
       bjOnBuf.endDraw();
 
-      // --- Disabled look ---
+      // Disabled
       bjOffBuf.beginDraw();
       bjOffBuf.clear();
       bjOffBuf.noStroke();
       bjOffBuf.fill(28);
-      bjOffBuf.rect(0, 0, bjBW, bjBH, 12);
+      bjOffBuf.rect(0, 0, bjBW, bjBH, 14);
       bjOffBuf.stroke(45);
       bjOffBuf.strokeWeight(1);
-      bjOffBuf.rect(0, 0, bjBW, bjBH, 12);
+      bjOffBuf.rect(0, 0, bjBW, bjBH, 14);
       bjOffBuf.textAlign(CENTER, CENTER);
-      bjOffBuf.textSize(16);
+      bjOffBuf.textSize(18);
       bjOffBuf.fill(80);
       bjOffBuf.text(bjLabel, bjBW / 2, bjBH / 2 - 2);
       bjOffBuf.endDraw();
