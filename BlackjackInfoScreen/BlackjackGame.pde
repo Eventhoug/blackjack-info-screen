@@ -61,6 +61,11 @@ class BlackjackGame {
   // Frame-tæller til forskudt kortgivning
   int bjFrameCount = 0;
 
+  // Dealer-tur state (bruges til forsinkelse mellem kort)
+  boolean bjDealerTurnActive = false;
+  int bjDealerNextDrawFrame = 0;
+  int bjDealerDrawDelay = 45; // frames mellem hvert dealer-kort (~0.75 sek ved 60fps)
+
 
   // Opsætning
   BlackjackGame(float x, float y, float w, float h) {
@@ -173,6 +178,11 @@ class BlackjackGame {
     drawRulesBanner();
     drawBothHands();
     drawStatusBar();
+
+    // Dealer trækker kort med forsinkelse
+    if (bjDealerTurnActive) {
+      dealerTick();
+    }
 
     // Tegn alle knapper
     bjDealBtn.render();
@@ -770,24 +780,27 @@ class BlackjackGame {
     holeCard.bjFlipProg = 0;
 
     bjStatus = "Dealer draws\u2026";
-    dealerPlay();
+    bjDealerTurnActive = true;
+    bjDealerNextDrawFrame = bjFrameCount + bjDealerDrawDelay;
   }
 
-  void dealerPlay() {
-    int dv = handValue(bjDealerHand);
-    int pv = handValue(bjPlayerHand);
-    int extra = 0;
-    while (dv < 17) {
-      extra++;
-      BJCard c = dealCard(true, extra);
-      bjDealerHand.add(c);
-      dv = handValue(bjDealerHand);
-    }
+  // Kaldes hvert frame under dealerens tur
+  void dealerTick() {
+    if (bjFrameCount < bjDealerNextDrawFrame) return;
 
-    if (dv > 21) endGame("win", "Dealer busts \u2014 you win!");
-    else if (dv > pv) endGame("lose", "Dealer wins with " + dv);
-    else if (pv > dv) endGame("win", "You win with " + pv + "!");
-    else endGame("tie", "Push \u2014 it's a tie");
+    int dv = handValue(bjDealerHand);
+    if (dv < 17) {
+      BJCard c = dealCard(true, 0);
+      bjDealerHand.add(c);
+      bjDealerNextDrawFrame = bjFrameCount + bjDealerDrawDelay;
+    } else {
+      bjDealerTurnActive = false;
+      int pv = handValue(bjPlayerHand);
+      if (dv > 21) endGame("win", "Dealer busts \u2014 you win!");
+      else if (dv > pv) endGame("lose", "Dealer wins with " + dv);
+      else if (pv > dv) endGame("win", "You win with " + pv + "!");
+      else endGame("tie", "Push \u2014 it's a tie");
+    }
   }
 
   void endGame(String result, String message) {
