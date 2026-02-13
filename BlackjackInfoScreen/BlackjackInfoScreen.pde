@@ -1,5 +1,6 @@
-// Blackjack Info Screen — main sketch entry point
-// Controls: D = deal, H = hit, S = stand  (or click the buttons)
+// Blackjack Info Screen 
+// Lowkey tror ikke det er nødvendigt at have denne fane så bare lav den om trust fr fr
+// Controls: 1 = deal, 2 = hit, 3 = stand  (Eller kilk på knapper)
 
 BlackjackGame blackjack;
 
