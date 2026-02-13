@@ -42,7 +42,7 @@ class BlackjackGame {
   final color BJ_LOSE = #e74c3c;
   final color BJ_AMBER = #e6b832;
 
-  // Lodredde positioner (beregnes én gang)
+  // Lodredde positioner
   float bjTitleY, bjDealerLabelY, bjDealerCardY;
   float bjBannerY, bjStatusY;
   float bjPlayerLabelY, bjPlayerCardY;
@@ -281,7 +281,7 @@ class BlackjackGame {
     fill(BJ_GOLD, 180);
     textAlign(CENTER, CENTER);
     textSize(22 * bjScale);
-    text("DEALER MUST STAND ON 17", bjW / 2, bjBannerY + bh / 2);
+    text("DEALER MUST HIT SOFT 17", bjW / 2, bjBannerY + bh / 2);
   }
 
 

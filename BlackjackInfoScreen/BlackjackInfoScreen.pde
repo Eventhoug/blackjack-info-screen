@@ -13,6 +13,12 @@ void setup() {
 
 void draw() {
   blackjack.display();
+  
+  // Luk spillet hvis midter knappen (Knappen med pilen) trykkes
+  //#TODO lav om til at gå tilbage
+  if (blackjack.bjBackRequested) {
+    exit();
+  }
 }
 
 void mousePressed() {
