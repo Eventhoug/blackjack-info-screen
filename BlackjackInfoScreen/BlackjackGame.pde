@@ -48,10 +48,10 @@ class BlackjackGame {
   float bjPlayerLabelY, bjPlayerCardY;
 
   // Knapper langs kanten
-  // 1 (venstre) = DEL
-  // 2 (bund-venstre) = TRÆK
+  // 1 (venstre) = DEAL
+  // 2 (bund-venstre) = HIT
   // midten-bund = TILBAGE (pil-ikon)
-  // 3 (bund-højre) = STÅ
+  // 3 (bund-højre) = STAND
   // 4 (højre) = ubrugt
   BJButton bjDealBtn, bjHitBtn, bjBackBtn, bjStandBtn, bjBtn4;
 
