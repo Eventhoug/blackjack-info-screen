@@ -664,7 +664,7 @@ class BlackjackGame {
     if (k == 'b' || k == 'B') handleBack();
   }
 
-  // Tilbage-knappen sætter et flag — koden udenfor bestemmer hvad der sker
+  // Tilbage-knappen sætter et flag koden udenfor bestemmer hvad der sker
   void handleBack() {
     bjBackRequested = true;
   }
@@ -673,13 +673,13 @@ class BlackjackGame {
   // Kortbunke
   void buildDeck() {
     bjDeck.clear();
-    String[] suits = { "\u2660", "\u2665", "\u2666", "\u2663" };
-    String[] ranks = { "A","2","3","4","5","6","7","8","9","10","J","Q","K" };
-    for (String s : suits)
+    String[] suits = { "\u2660", "\u2665", "\u2666", "\u2663" }; // Spar, Hjerter, Ruder, Klør i unicode
+    String[] ranks = { "A","2","3","4","5","6","7","8","9","10","J","Q","K" }; // Es, 2-10, Knægt, Dronning, Konge
+    for (String s : suits) //lav 52 kort 
       for (String r : ranks)
         bjDeck.add(new BJCard(s, r));
 
-    // Fisher-Yates blandings-algoritme
+    // Blandings-algoritme
     for (int i = bjDeck.size() - 1; i > 0; i--) {
       int j = int(random(i + 1));
       BJCard tmp = bjDeck.get(i);
@@ -688,12 +688,12 @@ class BlackjackGame {
     }
   }
 
-  BJCard pullCard() {
+  BJCard pullCard() { // Træk det øverste kort, byg ny bunke hvis tom
     if (bjDeck.size() == 0) buildDeck();
     return bjDeck.remove(bjDeck.size() - 1);
   }
 
-  BJCard dealCard(boolean autoFlip, int staggerIndex) {
+  BJCard dealCard(boolean autoFlip, int staggerIndex) { // Træk et kort og sæt dets startposition og animationsegenskaber
     BJCard c = pullCard();
     c.bjStartX = bjW / 2 - bjCardW / 2;
     c.bjStartY = bjH / 2 - bjCardH / 2;
@@ -717,7 +717,7 @@ class BlackjackGame {
     return total;
   }
 
-  int visibleDealerVal() {
+  int visibleDealerVal() { // Værdien af dealerens synlige kort
     if (bjDealerHand.size() == 0) return 0;
     BJCard first = bjDealerHand.get(0);
     if (first.bjRank.equals("A")) return 11;
@@ -743,16 +743,16 @@ class BlackjackGame {
     bjPlayerHand.add(dealCard(true, 2));
     bjDealerHand.add(dealCard(false, 3));
 
-    if (isBlackjack(bjPlayerHand)) {
-      if (isBlackjack(bjDealerHand)) endGame("tie", "Both have Blackjack \u2014 Push");
-      else endGame("blackjack", "BLACKJACK!");
+    if (isBlackjack(bjPlayerHand)) { // Tjek for Blackjack før dealerens tur starter
+      if (isBlackjack(bjDealerHand)) endGame("tie", "Both have Blackjack \u2014 Push"); // Begge har Blackjack = uafgjort
+      else endGame("blackjack", "BLACKJACK!"); // Spiller har Blackjack = spiller vinder
       return;
     }
-    if (isBlackjack(bjDealerHand)) {
+    if (isBlackjack(bjDealerHand)) { // Dealer har Blackjack = spiller taber
       endGame("lose", "Dealer Blackjack");
       return;
     }
-
+  // Printer status og aktiverer Hit/Stand knapper
     bjStatus = "Hit or Stand?";
     bjStatusType = "";
     bjDealBtn.bjEnabled = false;
@@ -760,21 +760,24 @@ class BlackjackGame {
     bjStandBtn.bjEnabled = true;
   }
 
-  void playerHit() {
+// Spiller vælger at trække et kort
+  void playerHit() { 
     if (!bjGameActive) return;
     BJCard c = dealCard(true, 0);
     bjPlayerHand.add(c);
-    int val = handValue(bjPlayerHand);
+    int val = handValue(bjPlayerHand); // Tjek for bust eller 21 efter at have trukket
     if (val > 21) endGame("lose", "Bust! Over 21");
     else if (val == 21) playerStand();
   }
 
+// Spilleren vælger at stå, dealerens tur starter
   void playerStand() {
     if (!bjGameActive) return;
     bjHitBtn.bjEnabled = false;
     bjStandBtn.bjEnabled = false;
     bjDealerRevealed = true;
 
+// Start dealerens tur ved at sætte det skjulte kort til at flippe og opdatere status
     BJCard holeCard = bjDealerHand.get(1);
     holeCard.bjFlipping = true;
     holeCard.bjFlipProg = 0;
@@ -788,6 +791,7 @@ class BlackjackGame {
   void dealerTick() {
     if (bjFrameCount < bjDealerNextDrawFrame) return;
 
+// Dealer trækker kort indtil håndværdien er mindst 17, derefter afgøres spillet
     int dv = handValue(bjDealerHand);
     if (dv < 17) {
       BJCard c = dealCard(true, 0);
@@ -803,6 +807,7 @@ class BlackjackGame {
     }
   }
 
+// Afslutter spillet, viser resultat og opdaterer statistik
   void endGame(String result, String message) {
     bjGameActive = false;
     bjDealerRevealed = true;
@@ -828,6 +833,7 @@ class BlackjackGame {
 
 
   // Indre klasser
+  // BJCard repræsenterer et kort og dets animationsstatus
   class BJCard {
     String bjSuit, bjRank;
 
@@ -849,6 +855,7 @@ class BlackjackGame {
     }
   }
 
+// BJButton repræsenterer en knap med grafik for aktiv og deaktiveret tilstand
   class BJButton {
     float bjBX, bjBY, bjBW, bjBH;
     String bjLabel;
@@ -906,14 +913,14 @@ bjOnBuf = createGraphics(int(bjBW + 10), int(bjBH + 10));
       }
       bjOffBuf.endDraw();
     }
-
+// Tegn knappen i den korrekte tilstand
     void render() {
       pushStyle();
       if (bjEnabled && bjOnBuf != null) image(bjOnBuf, bjBX, bjBY);
       else if (!bjEnabled && bjOffBuf != null) image(bjOffBuf, bjBX, bjBY);
       popStyle();
     }
-
+// Tjek om et klik rammer knappen
     boolean isHit(float mx, float my) {
       return mx >= bjBX && mx <= bjBX + bjBW
           && my >= bjBY && my <= bjBY + bjBH;
