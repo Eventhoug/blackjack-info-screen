@@ -14,22 +14,26 @@ void setup() {
 void draw() {
   blackjack.display();
   
-  // Luk spillet hvis midter knappen (Knappen med pilen) trykkes
-  //#TODO lav om til at gå tilbage
-  if (blackjack.bjBackRequested) {
-    exit();
-  }
-
+ 
+ 
+// deal knap
  if(bjButton1 == true) {
     blackjack.startGame();
 }
 
+// hit knap
 if(bjButton2 == true) {
     blackjack.playerHit();
 }
 
+// stand knap
 if(bjButton3 == true) {
     blackjack.playerStand();
+}
+
+ // Luk spillet hvis midter knappen (Knappen med pilen) trykkes
+if(bjButton4 == true) {
+    blackjack.bjBackRequested = true;
 }
 
 }
