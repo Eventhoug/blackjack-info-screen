@@ -19,6 +19,19 @@ void draw() {
   if (blackjack.bjBackRequested) {
     exit();
   }
+
+ if(bjButton1 == true) {
+    blackjack.startGame();
+}
+
+if(bjButton2 == true) {
+    blackjack.playerHit();
+}
+
+if(bjButton3 == true) {
+    blackjack.playerStand();
+}
+
 }
 
 void mousePressed() {
