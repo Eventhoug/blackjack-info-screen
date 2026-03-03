@@ -1,13 +1,13 @@
 /*
- * BlackjackGame
- * Alle klasserne er navngievet præfikset "BJ"- 
+ BlackjackGame
+ Alle klasserne er navngievet præfikset "BJ"- 
  
- * For at spille skal man:
- * BlackjackGame game = new BlackjackGame(0, 0, width, height);
- * game.display();           // Kald i draw()
- * game.handleClick(mx,my);  // Kald i mousePressed()
- * game.handleKey(k);        // Kald i keyPressed()
- * Tjek game.bjBackRequested for at gå tilbage til hovedmenuen.
+ For at spille skal man:
+ BlackjackGame game = new BlackjackGame(0, 0, width, height);
+ game.display();           // Kald i draw()
+ game.handleClick(mx,my);  // Kald i mousePressed()
+ game.handleKey(k);        // Kald i keyPressed()
+ Tjek game.bjBackRequested for at gå tilbage til hovedmenuen.
  */
 
 class BlackjackGame {
