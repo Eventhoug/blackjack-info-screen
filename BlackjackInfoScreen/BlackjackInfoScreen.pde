@@ -1,5 +1,5 @@
 // Blackjack Info Screen 
-// Controls: 1 = deal, 2 = hit, 3 = stand  (Eller kilk på knapper)
+// Virtuel Controls: 1 = deal, 2 = hit, 3 = stand  (Eller kilk på knapper)
 
 // Eksterne knapper sæt til true for at aktivere
 boolean bjButton1 = false; // DEAL

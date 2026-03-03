@@ -278,7 +278,7 @@ class BlackjackGame {
   }
 
 
-  // Regelbanner
+  // Banner med spillets regler
   void drawRulesBanner() {
     float bw = 620 * bjScale;
     float bh = 42 * bjScale;
@@ -487,7 +487,7 @@ class BlackjackGame {
     float r0 = cy + ch * 0.28, r1 = cy + ch * 0.37, r2 = cy + ch * 0.41;
     float r3 = cy + ch * 0.50, r4 = cy + ch * 0.59;
     float r5 = cy + ch * 0.63, r6 = cy + ch * 0.72;
-
+// Layouts for 2-10 (billedkort og Es håndteres særskilt ovenfor)
     switch (count) {
       case 2:
         pip(colC,r0,ps,suit,false); pip(colC,r6,ps,suit,true); break;
@@ -528,7 +528,7 @@ class BlackjackGame {
         pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
     }
   }
-
+// Tegn et enkelt kulør-symbol (pip), med mulighed for at vende det på hovedet
   void pip(float px, float py, float size, String suit, boolean flipped) {
     if (flipped) {
       pushMatrix();
@@ -554,7 +554,7 @@ class BlackjackGame {
     fill(isRed ? color(185, 30, 30) : color(28));
 
     if (suit.equals("\u2660")) {
-      // Spar — spids top, brede lapper, smal midje
+      // Spar spids top, brede lapper, smal midje
       beginShape();
       vertex(0, -1);
       bezierVertex( 0.1, -0.8,  1.0, -0.3,  0.9,  0.2);
@@ -573,7 +573,7 @@ class BlackjackGame {
       endShape(CLOSE);
 
     } else if (suit.equals("\u2665")) {
-      // Hjerter — to runde buler i toppen, spids bund
+      // Hjerter to runde buler i toppen, spids bund
       beginShape();
       vertex(0, 0.95);
       bezierVertex( 0.05, 0.8,  0.5,  0.25, 0.85, -0.05);
@@ -657,18 +657,12 @@ class BlackjackGame {
     if (k == '1' && bjDealBtn.bjEnabled) startGame();
     if (k == '2' && bjHitBtn.bjEnabled) playerHit();
     if (k == '3' && bjStandBtn.bjEnabled) playerStand();
-    // Bogstavgenveje
-    if (k == 'd' || k == 'D') startGame();
-    if ((k == 'h' || k == 'H') && bjHitBtn.bjEnabled) playerHit();
-    if ((k == 's' || k == 'S') && bjStandBtn.bjEnabled) playerStand();
-    if (k == 'b' || k == 'B') handleBack();
   }
 
   // Tilbage-knappen sætter et flag koden udenfor bestemmer hvad der sker
   void handleBack() {
     bjBackRequested = true;
   }
-
 
   // Kortbunke
   void buildDeck() {
