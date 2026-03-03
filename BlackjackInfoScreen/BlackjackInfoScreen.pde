@@ -1,6 +1,11 @@
 // Blackjack Info Screen 
-// Lowkey tror ikke det er nødvendigt at have denne fane så bare lav den om trust fr fr
 // Controls: 1 = deal, 2 = hit, 3 = stand  (Eller kilk på knapper)
+
+// Eksterne knapper — sæt til true for at aktivere
+boolean bjButton1 = false; // DEAL
+boolean bjButton2 = false; // HIT
+boolean bjButton3 = false; // STAND
+boolean bjButton4 = false; // BACK
 
 BlackjackGame blackjack;
 
@@ -16,25 +21,29 @@ void draw() {
   
  
  
-// deal knap
- if(bjButton1 == true) {
+// deal knap — kun på rising edge og når knappen er aktiv
+  if (bjButton1 && blackjack.bjDealBtn.bjEnabled) {
     blackjack.startGame();
-}
+    bjButton1 = false;
+  }
 
-// hit knap
-if(bjButton2 == true) {
+  // hit knap
+  if (bjButton2 && blackjack.bjHitBtn.bjEnabled) {
     blackjack.playerHit();
-}
+    bjButton2 = false;
+  }
 
-// stand knap
-if(bjButton3 == true) {
+  // stand knap
+  if (bjButton3 && blackjack.bjStandBtn.bjEnabled) {
     blackjack.playerStand();
-}
+    bjButton3 = false;
+  }
 
- // Luk spillet hvis midter knappen (Knappen med pilen) trykkes
-if(bjButton4 == true) {
+  // Luk spillet hvis midter knappen (Knappen med pilen) trykkes
+  if (bjButton4) {
     blackjack.bjBackRequested = true;
-}
+    bjButton4 = false;
+  }
 
 }
 
