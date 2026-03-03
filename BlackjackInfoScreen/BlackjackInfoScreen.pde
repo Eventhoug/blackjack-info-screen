@@ -21,7 +21,7 @@ void draw() {
   
  
  
-// deal knap — kun på rising edge og når knappen er aktiv
+// deal knap 
   if (bjButton1 && blackjack.bjDealBtn.bjEnabled) {
     blackjack.startGame();
     bjButton1 = false;
