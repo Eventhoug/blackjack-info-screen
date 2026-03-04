@@ -4,9 +4,9 @@
  
  For at spille skal man:
  BlackjackGame game = new BlackjackGame(0, 0, width, height);
- game.display();           // Kald i draw()
- game.handleClick(mx,my);  // Kald i mousePressed()
- game.handleKey(k);        // Kald i keyPressed()
+ game.bjDisplay();           // Kald i draw()
+ game.bjHandleClick(mx,my);  // Kald i mousePressed()
+ game.bjHandleKey(k);        // Kald i keyPressed()
  Tjek game.bjBackRequested for at gå tilbage til hovedmenuen.
  */
 
@@ -28,6 +28,13 @@ class BlackjackGame {
 
   // Tilbage-knap flag (tjekkes udefra for at forlade skærmen)
   boolean bjBackRequested = false;
+
+  // Eksterne knapper (afstandssensorer) — sæt til true for at aktivere
+  boolean bjButton1 = false; // Sensor 1 = DEAL
+  boolean bjButton2 = false; // Sensor 2 = HIT
+  boolean bjButton3 = false; // Sensor 3 = STAND
+  boolean bjButton4 = false; // Sensor 4 = (ubrugt)
+  boolean bjButton5 = false; // Sensor 5 = BACK
 
   // Pointtælling
   int bjWins = 0, bjLosses = 0, bjTies = 0;
@@ -126,12 +133,12 @@ class BlackjackGame {
     bjStandBtn.bjEnabled = false;
     bjBtn4.bjEnabled = false;
 
-    buildTableBuffer();
+    bjBuildTableBuffer();
   }
 
 
   // Bordoverflade (tegnes én gang i en buffer)
-  void buildTableBuffer() {
+  void bjBuildTableBuffer() {
     bjTableBuf = createGraphics(int(bjW), int(bjH));
     bjTableBuf.beginDraw();
     bjTableBuf.background(BJ_FELT);
@@ -167,42 +174,70 @@ class BlackjackGame {
 
 
   // Hoved-tegneløkke
-  void display() {
+  void bjDisplay() {
     bjFrameCount++;
     pushMatrix();
     translate(bjX, bjY);
 
     if (bjTableBuf != null) image(bjTableBuf, 0, 0);
 
-    drawTitle();
-    drawRulesBanner();
-    drawBothHands();
-    drawStatusBar();
+    bjDrawTitle();
+    bjDrawRulesBanner();
+    bjDrawBothHands();
+    bjDrawStatusBar();
 
     // Dealer trækker kort med forsinkelse
     if (bjDealerTurnActive) {
-      dealerTick();
+      bjDealerTick();
     }
 
     // Tegn alle knapper
-    bjDealBtn.render();
-    bjHitBtn.render();
-    bjBackBtn.render();
-    bjStandBtn.render();
+    bjDealBtn.bjRender();
+    bjHitBtn.bjRender();
+    bjBackBtn.bjRender();
+    bjStandBtn.bjRender();
 
     // Tegn pil-ikon på tilbage-knappen
-    drawBackArrow();
+    bjDrawBackArrow();
 
     // Nummerlabels ved hver knap
-    drawBtnLabel("1", bjDealBtn, true);
-    drawBtnLabel("2", bjHitBtn, false);
-    drawBtnLabel("3", bjStandBtn, false);
+    bjDrawBtnLabel("1", bjDealBtn, true);
+    bjDrawBtnLabel("2", bjHitBtn, false);
+    bjDrawBtnLabel("3", bjStandBtn, false);
+
+    // Håndter eksterne knapper
+    bjHandleExternalButtons();
 
     popMatrix();
   }
 
+  // Håndter eksterne knaptryk (rising edge + enabled-tjek)
+  void bjHandleExternalButtons() {
+    if (bjButton1 && bjDealBtn.bjEnabled) {
+      bjStartGame();
+      bjButton1 = false;
+    }
+    if (bjButton2 && bjHitBtn.bjEnabled) {
+      bjPlayerHit();
+      bjButton2 = false;
+    }
+    if (bjButton3 && bjStandBtn.bjEnabled) {
+      bjPlayerStand();
+      bjButton3 = false;
+    }
+    // Sensor 4 — ubrugt, nulstil bare
+    if (bjButton4) {
+      bjButton4 = false;
+    }
+    // Sensor 5 — BACK
+    if (bjButton5) {
+      bjBackRequested = true;
+      bjButton5 = false;
+    }
+  }
+
   // Nummerlabel: sideknapper viser nedenunder, bundknapper viser ovenover
-  void drawBtnLabel(String num, BJButton btn, boolean sideBtn) {
+  void bjDrawBtnLabel(String num, BJButton btn, boolean sideBtn) {
     textSize(14 * bjScale);
     fill(BJ_GOLD, 130);
     if (sideBtn) {
@@ -217,7 +252,7 @@ class BlackjackGame {
   }
 
   // Tegn en opadpegende pil på tilbage-knappen
-  void drawBackArrow() {
+  void bjDrawBackArrow() {
     float cx = bjBackBtn.bjBX + bjBackBtn.bjBW / 2;
     float cy = bjBackBtn.bjBY + bjBackBtn.bjBH / 2;
     float sz = min(bjBackBtn.bjBW, bjBackBtn.bjBH) * 0.38;
@@ -240,7 +275,7 @@ class BlackjackGame {
 
 
   // Titellinje og resultattavle
-  void drawTitle() {
+  void bjDrawTitle() {
     float tw = 500 * bjScale;
     float th = 80 * bjScale;
     float tx = bjW / 2 - tw / 2;
@@ -262,12 +297,12 @@ class BlackjackGame {
     fill(0, 70);
     rect(sx, bjTitleY, sw, sh, 12 * bjScale);
 
-    drawScoreColumn("W", bjWins, sx + 73 * bjScale, bjTitleY + sh / 2);
-    drawScoreColumn("L", bjLosses, sx + 220 * bjScale, bjTitleY + sh / 2);
-    drawScoreColumn("T", bjTies, sx + 367 * bjScale, bjTitleY + sh / 2);
+    bjDrawScoreColumn("W", bjWins, sx + 73 * bjScale, bjTitleY + sh / 2);
+    bjDrawScoreColumn("L", bjLosses, sx + 220 * bjScale, bjTitleY + sh / 2);
+    bjDrawScoreColumn("T", bjTies, sx + 367 * bjScale, bjTitleY + sh / 2);
   }
 
-  void drawScoreColumn(String label, int value, float cx, float cy) {
+  void bjDrawScoreColumn(String label, int value, float cx, float cy) {
     textAlign(CENTER, CENTER);
     textSize(15 * bjScale);
     fill(180);
@@ -279,7 +314,7 @@ class BlackjackGame {
 
 
   // Banner med spillets regler
-  void drawRulesBanner() {
+  void bjDrawRulesBanner() {
     float bw = 620 * bjScale;
     float bh = 42 * bjScale;
     float bx = bjW / 2 - bw / 2;
@@ -296,20 +331,20 @@ class BlackjackGame {
 
 
   // Tegn begge hænder med animation per kort
-  void drawBothHands() {
+  void bjDrawBothHands() {
     // Dealer
-    drawHandLabel("DEALER", bjDealerLabelY);
-    int dealerVal = bjDealerRevealed ? handValue(bjDealerHand) : visibleDealerVal();
-    drawValueBadge(str(dealerVal), bjW / 2 + 360 * bjScale, bjDealerLabelY);
-    updateAndDrawHand(bjDealerHand, bjDealerCardY, true);
+    bjDrawHandLabel("DEALER", bjDealerLabelY);
+    int dealerVal = bjDealerRevealed ? bjHandValue(bjDealerHand) : bjVisibleDealerVal();
+    bjDrawValueBadge(str(dealerVal), bjW / 2 + 360 * bjScale, bjDealerLabelY);
+    bjUpdateAndDrawHand(bjDealerHand, bjDealerCardY, true);
 
     // Spiller
-    drawHandLabel("PLAYER", bjPlayerLabelY);
-    drawValueBadge(str(handValue(bjPlayerHand)), bjW / 2 + 360 * bjScale, bjPlayerLabelY);
-    updateAndDrawHand(bjPlayerHand, bjPlayerCardY, false);
+    bjDrawHandLabel("PLAYER", bjPlayerLabelY);
+    bjDrawValueBadge(str(bjHandValue(bjPlayerHand)), bjW / 2 + 360 * bjScale, bjPlayerLabelY);
+    bjUpdateAndDrawHand(bjPlayerHand, bjPlayerCardY, false);
   }
 
-  void updateAndDrawHand(ArrayList<BJCard> hand, float rowY, boolean isDealer) {
+  void bjUpdateAndDrawHand(ArrayList<BJCard> hand, float rowY, boolean isDealer) {
     int n = hand.size();
     if (n == 0) return;
 
@@ -365,11 +400,11 @@ class BlackjackGame {
         showFace = c.bjFaceUp;
       }
 
-      drawAnimatedCard(c.bjCurX, c.bjCurY, bjCardW, bjCardH, c, showFace, scaleX);
+      bjDrawAnimatedCard(c.bjCurX, c.bjCurY, bjCardW, bjCardH, c, showFace, scaleX);
     }
   }
 
-  void drawAnimatedCard(float cx, float cy, float cw, float ch,
+  void bjDrawAnimatedCard(float cx, float cy, float cw, float ch,
                         BJCard card, boolean showFace, float scaleX) {
     float drawnW = cw * scaleX;
     float offsetX = (cw - drawnW) / 2;
@@ -379,20 +414,20 @@ class BlackjackGame {
     rect(cx + offsetX + 5 * bjScale, cy + 5 * bjScale, drawnW, ch, 10 * bjScale);
 
     if (showFace) {
-      drawCardFace(cx + offsetX, cy, drawnW, ch, card);
+      bjDrawCardFace(cx + offsetX, cy, drawnW, ch, card);
     } else {
-      drawCardBack(cx + offsetX, cy, drawnW, ch);
+      bjDrawCardBack(cx + offsetX, cy, drawnW, ch);
     }
   }
 
-  void drawHandLabel(String label, float y) {
+  void bjDrawHandLabel(String label, float y) {
     textAlign(LEFT, CENTER);
     textSize(22 * bjScale);
     fill(BJ_GOLD, 160);
     text(label, bjW / 2 - 400 * bjScale, y);
   }
 
-  void drawValueBadge(String val, float cx, float cy) {
+  void bjDrawValueBadge(String val, float cx, float cy) {
     float d = 52 * bjScale;
     noStroke();
     fill(0, 120);
@@ -412,7 +447,7 @@ class BlackjackGame {
 
 
   // Kortbagside (mørkeblå med guldramme)
-  void drawCardBack(float cx, float cy, float cw, float ch) {
+  void bjDrawCardBack(float cx, float cy, float cw, float ch) {
     float r = 10 * bjScale;
 
     stroke(#334455);
@@ -432,7 +467,7 @@ class BlackjackGame {
 
 
   // Kortforside (hvid med værdi og kulør-symboler)
-  void drawCardFace(float cx, float cy, float cw, float ch, BJCard card) {
+  void bjDrawCardFace(float cx, float cy, float cw, float ch, BJCard card) {
     float r = 10 * bjScale;
 
     stroke(190);
@@ -448,7 +483,7 @@ class BlackjackGame {
     textSize(cw * 0.22);
     text(card.bjRank, cx + cw * 0.20, cy + ch * 0.06);
 
-    drawPipLayout(cx, cy, cw, ch, card);
+    bjDrawPipLayout(cx, cy, cw, ch, card);
 
     pushMatrix();
     translate(cx + cw * 0.80, cy + ch * 0.94);
@@ -462,18 +497,18 @@ class BlackjackGame {
 
 
   // Kulør-layouts (2-10, Es, billedkort)
-  void drawPipLayout(float cx, float cy, float cw, float ch, BJCard card) {
+  void bjDrawPipLayout(float cx, float cy, float cw, float ch, BJCard card) {
     String rank = card.bjRank;
     String suit = card.bjSuit;
 
     if (rank.equals("A")) {
       float s = cw * 0.42;
-      drawSuitShape(cx + cw / 2 - s / 2, cy + ch / 2 - s / 2, s, s, suit);
+      bjDrawSuitShape(cx + cw / 2 - s / 2, cy + ch / 2 - s / 2, s, s, suit);
       return;
     }
     if (rank.equals("J") || rank.equals("Q") || rank.equals("K")) {
       float s = cw * 0.38;
-      drawSuitShape(cx + cw / 2 - s / 2, cy + ch / 2 - s / 2, s, s, suit);
+      bjDrawSuitShape(cx + cw / 2 - s / 2, cy + ch / 2 - s / 2, s, s, suit);
       return;
     }
 
@@ -490,60 +525,60 @@ class BlackjackGame {
 // Layouts for 2-10 (billedkort og Es håndteres særskilt ovenfor)
     switch (count) {
       case 2:
-        pip(colC,r0,ps,suit,false); pip(colC,r6,ps,suit,true); break;
+        bjPip(colC,r0,ps,suit,false); bjPip(colC,r6,ps,suit,true); break;
       case 3:
-        pip(colC,r0,ps,suit,false); pip(colC,r3,ps,suit,false); pip(colC,r6,ps,suit,true); break;
+        bjPip(colC,r0,ps,suit,false); bjPip(colC,r3,ps,suit,false); bjPip(colC,r6,ps,suit,true); break;
       case 4:
-        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
-        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
+        bjPip(colL,r0,ps,suit,false); bjPip(colR,r0,ps,suit,false);
+        bjPip(colL,r6,ps,suit,true);  bjPip(colR,r6,ps,suit,true);  break;
       case 5:
-        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
-        pip(colC,r3,ps,suit,false);
-        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
+        bjPip(colL,r0,ps,suit,false); bjPip(colR,r0,ps,suit,false);
+        bjPip(colC,r3,ps,suit,false);
+        bjPip(colL,r6,ps,suit,true);  bjPip(colR,r6,ps,suit,true);  break;
       case 6:
-        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
-        pip(colL,r3,ps,suit,false); pip(colR,r3,ps,suit,false);
-        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
+        bjPip(colL,r0,ps,suit,false); bjPip(colR,r0,ps,suit,false);
+        bjPip(colL,r3,ps,suit,false); bjPip(colR,r3,ps,suit,false);
+        bjPip(colL,r6,ps,suit,true);  bjPip(colR,r6,ps,suit,true);  break;
       case 7:
-        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
-        pip(colL,r3,ps,suit,false); pip(colR,r3,ps,suit,false);
-        pip(colC,r2,ps,suit,false);
-        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
+        bjPip(colL,r0,ps,suit,false); bjPip(colR,r0,ps,suit,false);
+        bjPip(colL,r3,ps,suit,false); bjPip(colR,r3,ps,suit,false);
+        bjPip(colC,r2,ps,suit,false);
+        bjPip(colL,r6,ps,suit,true);  bjPip(colR,r6,ps,suit,true);  break;
       case 8:
-        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
-        pip(colL,r3,ps,suit,false); pip(colR,r3,ps,suit,false);
-        pip(colC,r2,ps,suit,false); pip(colC,r4,ps,suit,true);
-        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
+        bjPip(colL,r0,ps,suit,false); bjPip(colR,r0,ps,suit,false);
+        bjPip(colL,r3,ps,suit,false); bjPip(colR,r3,ps,suit,false);
+        bjPip(colC,r2,ps,suit,false); bjPip(colC,r4,ps,suit,true);
+        bjPip(colL,r6,ps,suit,true);  bjPip(colR,r6,ps,suit,true);  break;
       case 9:
-        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
-        pip(colL,r1,ps,suit,false); pip(colR,r1,ps,suit,false);
-        pip(colC,r3,ps,suit,false);
-        pip(colL,r5,ps,suit,true);  pip(colR,r5,ps,suit,true);
-        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
+        bjPip(colL,r0,ps,suit,false); bjPip(colR,r0,ps,suit,false);
+        bjPip(colL,r1,ps,suit,false); bjPip(colR,r1,ps,suit,false);
+        bjPip(colC,r3,ps,suit,false);
+        bjPip(colL,r5,ps,suit,true);  bjPip(colR,r5,ps,suit,true);
+        bjPip(colL,r6,ps,suit,true);  bjPip(colR,r6,ps,suit,true);  break;
       case 10:
-        pip(colL,r0,ps,suit,false); pip(colR,r0,ps,suit,false);
-        pip(colL,r1,ps,suit,false); pip(colR,r1,ps,suit,false);
-        pip(colC,r2,ps,suit,false); pip(colC,r4,ps,suit,true);
-        pip(colL,r5,ps,suit,true);  pip(colR,r5,ps,suit,true);
-        pip(colL,r6,ps,suit,true);  pip(colR,r6,ps,suit,true);  break;
+        bjPip(colL,r0,ps,suit,false); bjPip(colR,r0,ps,suit,false);
+        bjPip(colL,r1,ps,suit,false); bjPip(colR,r1,ps,suit,false);
+        bjPip(colC,r2,ps,suit,false); bjPip(colC,r4,ps,suit,true);
+        bjPip(colL,r5,ps,suit,true);  bjPip(colR,r5,ps,suit,true);
+        bjPip(colL,r6,ps,suit,true);  bjPip(colR,r6,ps,suit,true);  break;
     }
   }
 // Tegn et enkelt kulør-symbol (pip), med mulighed for at vende det på hovedet
-  void pip(float px, float py, float size, String suit, boolean flipped) {
+  void bjPip(float px, float py, float size, String suit, boolean flipped) {
     if (flipped) {
       pushMatrix();
       translate(px, py);
       rotate(PI);
-      drawSuitShape(-size / 2, -size / 2, size, size, suit);
+      bjDrawSuitShape(-size / 2, -size / 2, size, size, suit);
       popMatrix();
     } else {
-      drawSuitShape(px - size / 2, py - size / 2, size, size, suit);
+      bjDrawSuitShape(px - size / 2, py - size / 2, size, size, suit);
     }
   }
 
 
   // Vektor-kulørformer, tegnes i normaliseret -1..1 rum og skaleres derefter
-  void drawSuitShape(float sx, float sy, float sw, float sh, String suit) {
+  void bjDrawSuitShape(float sx, float sy, float sw, float sh, String suit) {
     pushMatrix();
     pushStyle();
     translate(sx + sw / 2, sy + sh / 2);
@@ -612,7 +647,7 @@ class BlackjackGame {
 
 
   // Statuslinje
-  void drawStatusBar() {
+  void bjDrawStatusBar() {
     if (bjStatus.length() == 0) return;
 
     textSize(30 * bjScale);
@@ -643,29 +678,29 @@ class BlackjackGame {
 
 
   // Input (1=DEL, 2=TRÆK, 3=STÅ, centerpil=TILBAGE)
-  void handleClick(float mx, float my) {
+  void bjHandleClick(float mx, float my) {
     float lx = mx - bjX;
     float ly = my - bjY;
-    if (bjBackBtn.isHit(lx, ly)) handleBack();
-    if (bjDealBtn.isHit(lx, ly) && bjDealBtn.bjEnabled) startGame();
-    if (bjHitBtn.isHit(lx, ly) && bjHitBtn.bjEnabled) playerHit();
-    if (bjStandBtn.isHit(lx, ly) && bjStandBtn.bjEnabled) playerStand();
+    if (bjBackBtn.bjIsHit(lx, ly)) bjHandleBack();
+    if (bjDealBtn.bjIsHit(lx, ly) && bjDealBtn.bjEnabled) bjStartGame();
+    if (bjHitBtn.bjIsHit(lx, ly) && bjHitBtn.bjEnabled) bjPlayerHit();
+    if (bjStandBtn.bjIsHit(lx, ly) && bjStandBtn.bjEnabled) bjPlayerStand();
   }
 
-  void handleKey(char k) {
+  void bjHandleKey(char k) {
     // Taltaster: 1=DEL 2=TRÆK 3=STÅ
-    if (k == '1' && bjDealBtn.bjEnabled) startGame();
-    if (k == '2' && bjHitBtn.bjEnabled) playerHit();
-    if (k == '3' && bjStandBtn.bjEnabled) playerStand();
+    if (k == '1' && bjDealBtn.bjEnabled) bjStartGame();
+    if (k == '2' && bjHitBtn.bjEnabled) bjPlayerHit();
+    if (k == '3' && bjStandBtn.bjEnabled) bjPlayerStand();
   }
 
   // Tilbage-knappen sætter et flag koden udenfor bestemmer hvad der sker
-  void handleBack() {
+  void bjHandleBack() {
     bjBackRequested = true;
   }
 
   // Kortbunke
-  void buildDeck() {
+  void bjBuildDeck() {
     bjDeck.clear();
     String[] suits = { "\u2660", "\u2665", "\u2666", "\u2663" }; // Spar, Hjerter, Ruder, Klør i unicode
     String[] ranks = { "A","2","3","4","5","6","7","8","9","10","J","Q","K" }; // Es, 2-10, Knægt, Dronning, Konge
@@ -682,13 +717,13 @@ class BlackjackGame {
     }
   }
 
-  BJCard pullCard() { // Træk det øverste kort, byg ny bunke hvis tom
-    if (bjDeck.size() == 0) buildDeck();
+  BJCard bjPullCard() { // Træk det øverste kort, byg ny bunke hvis tom
+    if (bjDeck.size() == 0) bjBuildDeck();
     return bjDeck.remove(bjDeck.size() - 1);
   }
 
-  BJCard dealCard(boolean autoFlip, int staggerIndex) { // Træk et kort og sæt dets startposition og animationsegenskaber
-    BJCard c = pullCard();
+  BJCard bjDealCard(boolean autoFlip, int staggerIndex) { // Træk et kort og sæt dets startposition og animationsegenskaber
+    BJCard c = bjPullCard();
     c.bjStartX = bjW / 2 - bjCardW / 2;
     c.bjStartY = bjH / 2 - bjCardH / 2;
     c.bjCurX = c.bjStartX;
@@ -700,7 +735,7 @@ class BlackjackGame {
 
 
   // Beregning af håndværdi
-  int handValue(ArrayList<BJCard> hand) {
+  int bjHandValue(ArrayList<BJCard> hand) {
     int total = 0, aces = 0;
     for (BJCard c : hand) {
       if (c.bjRank.equals("A")) { aces++; total += 11; }
@@ -711,7 +746,7 @@ class BlackjackGame {
     return total;
   }
 
-  int visibleDealerVal() { // Værdien af dealerens synlige kort
+  int bjVisibleDealerVal() { // Værdien af dealerens synlige kort
     if (bjDealerHand.size() == 0) return 0;
     BJCard first = bjDealerHand.get(0);
     if (first.bjRank.equals("A")) return 11;
@@ -719,31 +754,31 @@ class BlackjackGame {
     return int(first.bjRank);
   }
 
-  boolean isBlackjack(ArrayList<BJCard> hand) {
-    return hand.size() == 2 && handValue(hand) == 21;
+  boolean bjIsBlackjack(ArrayList<BJCard> hand) {
+    return hand.size() == 2 && bjHandValue(hand) == 21;
   }
 
 
   // Spilforløb
-  void startGame() {
-    buildDeck();
+  void bjStartGame() {
+    bjBuildDeck();
     bjPlayerHand.clear();
     bjDealerHand.clear();
     bjGameActive = true;
     bjDealerRevealed = false;
 
-    bjPlayerHand.add(dealCard(true, 0));
-    bjDealerHand.add(dealCard(true, 1));
-    bjPlayerHand.add(dealCard(true, 2));
-    bjDealerHand.add(dealCard(false, 3));
+    bjPlayerHand.add(bjDealCard(true, 0));
+    bjDealerHand.add(bjDealCard(true, 1));
+    bjPlayerHand.add(bjDealCard(true, 2));
+    bjDealerHand.add(bjDealCard(false, 3));
 
-    if (isBlackjack(bjPlayerHand)) { // Tjek for Blackjack før dealerens tur starter
-      if (isBlackjack(bjDealerHand)) endGame("tie", "Both have Blackjack \u2014 Push"); // Begge har Blackjack = uafgjort
-      else endGame("blackjack", "BLACKJACK!"); // Spiller har Blackjack = spiller vinder
+    if (bjIsBlackjack(bjPlayerHand)) { // Tjek for Blackjack før dealerens tur starter
+      if (bjIsBlackjack(bjDealerHand)) bjEndGame("tie", "Both have Blackjack \u2014 Push"); // Begge har Blackjack = uafgjort
+      else bjEndGame("blackjack", "BLACKJACK!"); // Spiller har Blackjack = spiller vinder
       return;
     }
-    if (isBlackjack(bjDealerHand)) { // Dealer har Blackjack = spiller taber
-      endGame("lose", "Dealer Blackjack");
+    if (bjIsBlackjack(bjDealerHand)) { // Dealer har Blackjack = spiller taber
+      bjEndGame("lose", "Dealer Blackjack");
       return;
     }
   // Printer status og aktiverer Hit/Stand knapper
@@ -755,17 +790,17 @@ class BlackjackGame {
   }
 
 // Spiller vælger at trække et kort
-  void playerHit() { 
+  void bjPlayerHit() { 
     if (!bjGameActive) return;
-    BJCard c = dealCard(true, 0);
+    BJCard c = bjDealCard(true, 0);
     bjPlayerHand.add(c);
-    int val = handValue(bjPlayerHand); // Tjek for bust eller 21 efter at have trukket
-    if (val > 21) endGame("lose", "Bust! Over 21");
-    else if (val == 21) playerStand();
+    int val = bjHandValue(bjPlayerHand); // Tjek for bust eller 21 efter at have trukket
+    if (val > 21) bjEndGame("lose", "Bust! Over 21");
+    else if (val == 21) bjPlayerStand();
   }
 
 // Spilleren vælger at stå, dealerens tur starter
-  void playerStand() {
+  void bjPlayerStand() {
     if (!bjGameActive) return;
     bjHitBtn.bjEnabled = false;
     bjStandBtn.bjEnabled = false;
@@ -782,27 +817,27 @@ class BlackjackGame {
   }
 
   // Kaldes hvert frame under dealerens tur
-  void dealerTick() {
+  void bjDealerTick() {
     if (bjFrameCount < bjDealerNextDrawFrame) return;
 
 // Dealer trækker kort indtil håndværdien er mindst 17, derefter afgøres spillet
-    int dv = handValue(bjDealerHand);
+    int dv = bjHandValue(bjDealerHand);
     if (dv < 17) {
-      BJCard c = dealCard(true, 0);
+      BJCard c = bjDealCard(true, 0);
       bjDealerHand.add(c);
       bjDealerNextDrawFrame = bjFrameCount + bjDealerDrawDelay;
     } else {
       bjDealerTurnActive = false;
-      int pv = handValue(bjPlayerHand);
-      if (dv > 21) endGame("win", "Dealer busts \u2014 you win!");
-      else if (dv > pv) endGame("lose", "Dealer wins with " + dv);
-      else if (pv > dv) endGame("win", "You win with " + pv + "!");
-      else endGame("tie", "Push \u2014 it's a tie");
+      int pv = bjHandValue(bjPlayerHand);
+      if (dv > 21) bjEndGame("win", "Dealer busts \u2014 you win!");
+      else if (dv > pv) bjEndGame("lose", "Dealer wins with " + dv);
+      else if (pv > dv) bjEndGame("win", "You win with " + pv + "!");
+      else bjEndGame("tie", "Push \u2014 it's a tie");
     }
   }
 
 // Afslutter spillet, viser resultat og opdaterer statistik
-  void endGame(String result, String message) {
+  void bjEndGame(String result, String message) {
     bjGameActive = false;
     bjDealerRevealed = true;
     bjStatus = message;
@@ -861,10 +896,10 @@ class BlackjackGame {
              String label, color bg, color txt) {
       bjBX = x; bjBY = y; bjBW = w; bjBH = h;
       bjLabel = label; bjBg = bg; bjTxt = txt;
-      prebakeBuffers();
+      bjPrebakeBuffers();
     }
 
-    void prebakeBuffers() {
+    void bjPrebakeBuffers() {
 bjOnBuf = createGraphics(int(bjBW + 10), int(bjBH + 10));
       bjOffBuf = createGraphics(int(bjBW + 10), int(bjBH + 10));
 
@@ -908,14 +943,14 @@ bjOnBuf = createGraphics(int(bjBW + 10), int(bjBH + 10));
       bjOffBuf.endDraw();
     }
 // Tegn knappen i den korrekte tilstand
-    void render() {
+    void bjRender() {
       pushStyle();
       if (bjEnabled && bjOnBuf != null) image(bjOnBuf, bjBX, bjBY);
       else if (!bjEnabled && bjOffBuf != null) image(bjOffBuf, bjBX, bjBY);
       popStyle();
     }
 // Tjek om et klik rammer knappen
-    boolean isHit(float mx, float my) {
+    boolean bjIsHit(float mx, float my) {
       return mx >= bjBX && mx <= bjBX + bjBW
           && my >= bjBY && my <= bjBY + bjBH;
     }
