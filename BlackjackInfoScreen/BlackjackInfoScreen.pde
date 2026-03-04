@@ -64,7 +64,6 @@ void serialEvent(Serial p) {
         case 0: blackjack.bjButton1 = true; break; // DEAL
         case 1: blackjack.bjButton2 = true; break; // HIT
         case 2: blackjack.bjButton3 = true; break; // STAND
-        case 3: blackjack.bjButton4 = true; break; // (ubrugt)
         case 4: blackjack.bjButton5 = true; break; // BACK
       }
     }

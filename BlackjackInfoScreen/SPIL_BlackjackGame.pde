@@ -33,7 +33,6 @@ class BlackjackGame {
   boolean bjButton1 = false; // Sensor 1 = DEAL
   boolean bjButton2 = false; // Sensor 2 = HIT
   boolean bjButton3 = false; // Sensor 3 = STAND
-  boolean bjButton4 = false; // Sensor 4 = (ubrugt)
   boolean bjButton5 = false; // Sensor 5 = BACK
 
   // Pointtælling
@@ -59,8 +58,7 @@ class BlackjackGame {
   // 2 (bund-venstre) = HIT
   // midten-bund = TILBAGE (pil-ikon)
   // 3 (bund-højre) = STAND
-  // 4 (højre) = ubrugt
-  BJButton bjDealBtn, bjHitBtn, bjBackBtn, bjStandBtn, bjBtn4;
+  BJButton bjDealBtn, bjHitBtn, bjBackBtn, bjStandBtn;
 
   // Forud-renderet bordoverflade
   PGraphics bjTableBuf;
@@ -125,13 +123,9 @@ class BlackjackGame {
     // 3: STÅ — bundkant, højre kvart
     bjStandBtn = new BJButton(w * 0.78 - botBtnW, botY, botBtnW, botBtnH,
                               "STAND", BJ_LOSE, #f0f0f0);
-    // 4: ubrugt — højre kant, lodret centreret
-    bjBtn4 = new BJButton(w - inset - sideBtnW, sideY, sideBtnW, sideBtnH,
-                              "", #444444, #888888);
 
     bjHitBtn.bjEnabled = false;
     bjStandBtn.bjEnabled = false;
-    bjBtn4.bjEnabled = false;
 
     bjBuildTableBuffer();
   }
@@ -224,10 +218,6 @@ class BlackjackGame {
     if (bjButton3 && bjStandBtn.bjEnabled) {
       bjPlayerStand();
       bjButton3 = false;
-    }
-    // Sensor 4 — ubrugt, nulstil bare
-    if (bjButton4) {
-      bjButton4 = false;
     }
     // Sensor 5 — BACK
     if (bjButton5) {
